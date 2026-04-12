@@ -1,0 +1,1151 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+    <meta name="theme-color" content="#ff6b35">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="manifest" href="manifest.json">
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+    <title>Coffee Order</title>
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyCABKJYVrwYQlqahb5rqaIHL-6s5djxxKI",
+            authDomain: "order-app-fea72.firebaseapp.com",
+            projectId: "order-app-fea72",
+            storageBucket: "order-app-fea72.firebasestorage.app",
+            messagingSenderId: "502361767460",
+            appId: "1:502361767460:web:44500f7e367a052eab62b1"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+    </script>
+    <style>
+        *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+        html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f5f5f5;color:#333}
+        body{display:flex;flex-direction:column;max-width:480px;margin:0 auto}
+        
+        .header{background:#ff6b35;color:#fff;padding:12px 16px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:100}
+        .header h1{font-size:18px;font-weight:600}
+        .cart-badge{background:#fff;color:#ff6b35;font-size:12px;font-weight:700;padding:4px 10px;border-radius:20px;min-width:32px;text-align:center}
+        
+        .tabs{display:flex;background:#fff;border-bottom:1px solid #eee;position:sticky;top:52px;z-index:99}
+        .tab{flex:1;padding:14px 8px;text-align:center;font-size:13px;font-weight:600;color:#666;border:none;background:0;cursor:pointer}
+        .tab.active{color:#ff6b35;border-bottom:3px solid #ff6b35}
+        
+        .content{flex:1;overflow-y:auto;padding-bottom:80px}
+        .tab-content{display:none}.tab-content.active{display:block}
+        
+        /* Menu Grid */
+        .menu-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;padding:10px}
+        .menu-item{background:#fff;border-radius:12px;padding:12px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,0.1)}
+        .menu-item .emoji{font-size:36px;margin-bottom:6px}
+        .menu-item .name{font-size:13px;font-weight:600;margin-bottom:4px}
+        .menu-item .price{font-size:14px;color:#ff6b35;font-weight:700;margin-bottom:8px}
+        .add-btn{width:100%;padding:10px;background:#ff6b35;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer}
+        .add-btn:active{background:#e55a2b}
+        
+        /* Cart */
+        .cart-items{padding:10px}
+        .cart-item{background:#fff;border-radius:10px;padding:12px;margin-bottom:8px}
+        .cart-item-top{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+        .cart-item .emoji{font-size:28px}
+        .cart-item .info{flex:1}
+        .cart-item .name{font-weight:600;font-size:14px}
+        .cart-item .price{color:#ff6b35;font-size:13px}
+        .cart-options{font-size:12px;color:#666;padding:6px 0;border-top:1px dashed #eee;margin-top:8px}
+        .qty-control{display:flex;align-items:center;gap:8px}
+        .qty-btn{width:36px;height:36px;border:1px solid #ddd;border-radius:8px;background:#fff;font-size:18px;font-weight:600;cursor:pointer}
+        .qty-btn:active{background:#f0f0f0}
+        .qty-num{font-size:16px;font-weight:700;min-width:24px;text-align:center}
+        .remove-btn{color:#ff6b35;background:0;border:0;font-size:20px;cursor:pointer;padding:8px}
+        
+        /* Summary */
+        .summary{background:#fff;padding:16px;margin-top:10px}
+        .summary-row{display:flex;justify-content:space-between;margin-bottom:12px;font-size:15px}
+        .summary-total{font-size:18px;font-weight:700;color:#ff6b35}
+        .name-input{width:100%;padding:14px;font-size:16px;border:2px solid #eee;border-radius:10px;margin-bottom:12px}
+        .name-input:focus{border-color:#ff6b35;outline:0}
+        .order-btn{width:100%;padding:16px;background:#ff6b35;color:#fff;border:none;border-radius:10px;font-size:16px;font-weight:700;cursor:pointer}
+        .order-btn:active{background:#e55a2b}
+        
+        /* Orders */
+        .order-list{padding:10px}
+        .order-card{background:#fff;border-radius:12px;padding:14px;margin-bottom:10px;box-shadow:0 1px 3px rgba(0,0,0,0.1)}
+        .order-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+        .order-customer{font-weight:700;font-size:15px}
+        .order-time{font-size:12px;color:#999}
+        .order-status{font-size:12px;padding:6px 12px;border-radius:20px;font-weight:600}
+        .status-making{background:#fff3e0;color:#ff9800}
+        .status-done{background:#e8f5e9;color:#4caf50}
+        .order-items{font-size:13px;color:#666;margin-bottom:8px}
+        .order-total{font-weight:700;color:#ff6b35}
+        .order-actions{display:flex;gap:8px;margin-top:10px}
+        .action-btn{flex:1;padding:10px;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer}
+        .toggle-btn{background:#f0f0f0;color:#333}
+        .delete-btn{background:#ffebee;color:#f44336}
+        .clear-all{text-align:center;padding:10px}
+        .clear-btn{color:#f44336;background:0;border:0;font-size:13px;cursor:pointer;padding:8px}
+        
+        /* Settings */
+        .settings{padding:10px}
+        .setting-section{background:#fff;border-radius:12px;padding:14px;margin-bottom:12px}
+        .setting-title{font-weight:700;font-size:15px;margin-bottom:12px;color:#333}
+        .edit-item{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #eee}
+        .edit-item:last-child{border-bottom:none}
+        .edit-item .emoji{font-size:28px}
+        .edit-item .info{flex:1}
+        .edit-item .name{font-weight:600;font-size:14px}
+        .edit-item .price{color:#ff6b35;font-size:13px}
+        .edit-btn{padding:8px 14px;background:#f0f0f0;border:none;border-radius:6px;font-size:13px;cursor:pointer}
+        .add-item-btn{width:100%;padding:14px;background:#ff6b35;color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer}
+        .delete-item-btn{color:#f44336;background:#ffebee;padding:8px 12px;border:none;border-radius:6px;font-size:12px;cursor:pointer}
+        
+        /* Modal */
+        .modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:200;align-items:center;justify-content:center;padding:20px}
+        .modal.show{display:flex}
+        .modal-content{background:#fff;border-radius:16px;width:100%;max-width:400px;max-height:90vh;overflow-y:auto;padding:20px}
+        .modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+        .modal-title{font-size:18px;font-weight:700}
+        .modal-close{background:0;border:0;font-size:24px;cursor:pointer;padding:4px}
+        
+        .form-group{margin-bottom:14px}
+        .form-label{font-size:13px;font-weight:600;color:#666;margin-bottom:6px;display:block}
+        .form-input{width:100%;padding:12px;font-size:15px;border:2px solid #eee;border-radius:10px}
+        .form-input:focus{border-color:#ff6b35;outline:0}
+        .form-row{display:flex;gap:10px}
+        .form-row .form-group{flex:1}
+        .emoji-picker{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+        .emoji-btn{width:44px;height:44px;font-size:24px;border:2px solid #eee;border-radius:10px;background:#fff;cursor:pointer}
+        .emoji-btn.selected{border-color:#ff6b35;background:#fff3e0}
+        
+        .option-group{margin-bottom:16px}
+        .option-label{font-size:14px;font-weight:600;margin-bottom:8px}
+        .option-row{display:flex;flex-wrap:wrap;gap:8px}
+        .option-btn{padding:10px 16px;border:2px solid #eee;border-radius:20px;background:#fff;font-size:13px;cursor:pointer}
+        .option-btn.selected{border-color:#ff6b35;background:#fff3e0;color:#ff6b35;font-weight:600}
+        
+        .save-btn{width:100%;padding:14px;background:#ff6b35;color:#fff;border:none;border-radius:10px;font-size:16px;font-weight:600;cursor:pointer}
+        
+        /* Empty */
+        .empty{text-align:center;padding:40px;color:#999;font-size:14px}
+        .empty-icon{font-size:48px;margin-bottom:10px}
+        
+        /* Toast */
+        .toast{position:fixed;top:70px;left:50%;transform:translateX(-50%) translateY(-100px);background:#333;color:#fff;padding:12px 24px;border-radius:8px;font-size:14px;font-weight:600;z-index:1000;transition:transform .3s}
+        .toast.show{transform:translateX(-50%) translateY(0)}
+    </style>
+</head>
+<body>
+    <header class="header">
+        <h1>☕ Coffee Order</h1>
+        <div class="cart-badge" id="cartBadge">0</div>
+    </header>
+    
+    <nav class="tabs">
+        <button class="tab active" data-tab="menu">📋 Thực Đơn</button>
+        <button class="tab" data-tab="cart">🛒 Giỏ <span id="tabCartNum">0</span></button>
+        <button class="tab" data-tab="kitchen">🍳 Bếp <span id="kitchenBadge" style="background:#ff9800;color:#fff;padding:2px 6px;border-radius:10px;font-size:11px">0</span></button>
+        <button class="tab" data-tab="orders">📦 Đơn</button>
+        <button class="tab" data-tab="settings">⚙️ Cài Đặt</button>
+    </nav>
+    
+    <main class="content">
+        <!-- Menu Tab -->
+        <div class="tab-content active" id="menuContent">
+            <div class="menu-grid" id="menuGrid"></div>
+        </div>
+        
+        <!-- Cart Tab -->
+        <div class="tab-content" id="cartContent">
+            <div id="cartItems" class="cart-items"></div>
+            <div id="cartEmpty" class="empty"><div class="empty-icon">🛒</div>Giỏ hàng trống</div>
+            <div id="cartSummary" class="summary">
+                <div class="summary-row"><span>Tổng món:</span><span id="totalItems">0</span></div>
+                <div class="summary-row"><span>Tổng tiền:</span><span class="summary-total" id="totalPrice">0đ</span></div>
+                <input type="text" class="name-input" id="customerName" placeholder="Tên khách hàng...">
+                <button class="order-btn" onclick="placeOrder()">📦 Đặt Hàng Ngay</button>
+            </div>
+        </div>
+        
+        <!-- Kitchen Tab -->
+        <div class="tab-content" id="kitchenContent">
+            <div style="padding:10px">
+                <div style="display:flex;gap:8px;margin-bottom:10px">
+                    <button id="kitchenTabMaking" onclick="switchKitchenTab('making')" style="flex:1;padding:12px;border:2px solid #ff9800;border-radius:8px;background:#fff3e0;font-weight:700;font-size:14px;cursor:pointer">🍳 Đang Làm (<span id="kitchenMakingCount">0</span>)</button>
+                    <button id="kitchenTabDone" onclick="switchKitchenTab('done')" style="flex:1;padding:12px;border:2px solid #ddd;border-radius:8px;background:#fff;font-weight:700;font-size:14px;cursor:pointer;color:#666">✓ Hoàn Thành (<span id="kitchenDoneCount">0</span>)</button>
+                </div>
+            </div>
+            <div id="kitchenList" style="padding:0 10px"></div>
+        </div>
+        
+        <!-- Orders Tab -->
+        <div class="tab-content" id="ordersContent">
+            <div class="clear-all"><button class="clear-btn" onclick="clearAllOrders()">🗑️ Xóa tất cả đơn</button></div>
+            <div class="order-list" id="orderList"></div>
+            <div id="ordersEmpty" class="empty"><div class="empty-icon">📦</div>Chưa có đơn nào</div>
+        </div>
+        
+        <!-- Settings Tab -->
+        <div class="tab-content" id="settingsContent">
+            <div class="settings">
+                <div class="setting-section">
+                    <div class="setting-title">📋 Danh Sách Món</div>
+                    <div id="editList"></div>
+                    <button class="add-item-btn" onclick="openAddModal()">➕ Thêm Món Mới</button>
+                </div>
+                <div class="setting-section">
+                    <div class="setting-title">🧊 Tùy Chọn Mặc Định</div>
+                    <div class="option-group">
+                        <div class="option-label">Đường:</div>
+                        <div class="option-row" id="defaultSugar">
+                            <button class="option-btn" data-val="100">100%</button>
+                            <button class="option-btn selected" data-val="70">70%</button>
+                            <button class="option-btn" data-val="50">50%</button>
+                            <button class="option-btn" data-val="30">30%</button>
+                            <button class="option-btn" data-val="0">0%</button>
+                        </div>
+                    </div>
+                    <div class="option-group">
+                        <div class="option-label">Đá:</div>
+                        <div class="option-row" id="defaultIce">
+                            <button class="option-btn selected" data-val="full">Nhiều đá</button>
+                            <button class="option-btn" data-val="normal">Bình thường</button>
+                            <button class="option-btn" data-val="less">Ít đá</button>
+                            <button class="option-btn" data-val="none">Không đá</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="setting-section">
+                    <div class="setting-title">🖨️ Cài Đặt Máy In</div>
+                    <div id="printerStatus" class="printer-status" style="margin-bottom:12px;padding:10px;background:#f0f0f0;border-radius:8px;font-size:13px">
+                        <span id="printerStatusText">🔴 Chưa kết nối</span>
+                    </div>
+                    <button class="add-item-btn" style="background:#2196f3;margin-bottom:8px" onclick="connectPrinter()">📡 Kết Nối Máy In Bluetooth</button>
+                    <button class="add-item-btn" style="background:#666" onclick="testPrint()">🧪 In Test</button>
+                    <div style="margin-top:12px;font-size:12px;color:#666">
+                        <strong>Hỗ trợ:</strong> Máy in Bluetooth ESC/POS (如: XPrinter,芯烨,佳博,爱宝)
+                    </div>
+                </div>
+                <div class="setting-section">
+                    <div class="setting-title">🏪 Thông Tin Quán</div>
+                    <div class="form-group">
+                        <div class="form-label">Tên quán:</div>
+                        <input type="text" class="form-input" id="shopName" placeholder="Coffee Order" onchange="saveShopInfo()">
+                    </div>
+                    <div class="form-group">
+                        <div class="form-label">Địa chỉ / SĐT:</div>
+                        <input type="text" class="form-input" id="shopInfo" placeholder="123 Đường ABC, TP.HCM" onchange="saveShopInfo()">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+    
+    <!-- Item Modal -->
+    <div class="modal" id="itemModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title" id="modalTitle">Thêm Món</div>
+                <button class="modal-close" onclick="closeModal()">×</button>
+            </div>
+            <div class="form-group">
+                <div class="form-label">Icon:</div>
+                <input type="text" class="form-input" id="itemEmoji" placeholder="☕" maxlength="2">
+                <div class="emoji-picker" id="emojiPicker"></div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <div class="form-label">Tên món:</div>
+                    <input type="text" class="form-input" id="itemName" placeholder="Cà Phê Sữa">
+                </div>
+                <div class="form-group">
+                    <div class="form-label">Giá (đ):</div>
+                    <input type="number" class="form-input" id="itemPrice" placeholder="25000">
+                </div>
+            </div>
+            <div class="option-group">
+                <div class="option-label">Đường:</div>
+                <div class="option-row" id="modalSugar">
+                    <button class="option-btn selected" data-val="100">100%</button>
+                    <button class="option-btn" data-val="70">70%</button>
+                    <button class="option-btn" data-val="50">50%</button>
+                    <button class="option-btn" data-val="30">30%</button>
+                    <button class="option-btn" data-val="0">0%</button>
+                </div>
+            </div>
+            <div class="option-group">
+                <div class="option-label">Đá:</div>
+                <div class="option-row" id="modalIce">
+                    <button class="option-btn selected" data-val="full">Nhiều</button>
+                    <button class="option-btn" data-val="normal">Bình thường</button>
+                    <button class="option-btn" data-val="less">Ít</button>
+                    <button class="option-btn" data-val="none">Không</button>
+                </div>
+            </div>
+            <div class="form-group">
+                <div class="option-label">Size:</div>
+                <div class="form-row">
+                    <div class="form-group" style="flex:1">
+                        <div class="form-label" style="font-size:11px">Size S</div>
+                        <input type="number" class="form-input" id="itemSizeS" value="0" style="padding:8px;font-size:13px">
+                    </div>
+                    <div class="form-group" style="flex:1">
+                        <div class="form-label" style="font-size:11px">Size M (+)</div>
+                        <input type="number" class="form-input" id="itemSizeM" value="5000" placeholder="+5000" style="padding:8px;font-size:13px">
+                    </div>
+                    <div class="form-group" style="flex:1">
+                        <div class="form-label" style="font-size:11px">Size L (+)</div>
+                        <input type="number" class="form-input" id="itemSizeL" value="10000" placeholder="+10000" style="padding:8px;font-size:13px">
+                    </div>
+                </div>
+            </div>
+            <button class="save-btn" id="modalSaveBtn" onclick="saveItem()">💾 Lưu</button>
+        </div>
+    </div>
+    
+    <!-- Options Modal for Cart -->
+    <div class="modal" id="optionsModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title" id="optionsTitle">Chọn tùy chọn</div>
+                <button class="modal-close" onclick="closeOptionsModal()">×</button>
+            </div>
+            <div id="optionsContent"></div>
+            <button class="save-btn" onclick="confirmAddToCart()">✅ Xác nhận</button>
+        </div>
+    </div>
+    
+    <div class="toast" id="toast"></div>
+    
+    <script>
+        const EMOJIS = ['☕','🧊','🍵','🥛','🍋','🍊','🥑','🍎','🍓','🍇','🥤','🧃','🍹','🧋','🍦','🍰','🍪','🥜','🍫','🍮'];
+        const PRICE_SIZE = {S:0, M:5000, L:10000};
+        
+        let menu = JSON.parse(localStorage.getItem('coffee_menu')) || null;
+        let cart = JSON.parse(localStorage.getItem('coffee_cart')) || [];
+        let orders = JSON.parse(localStorage.getItem('coffee_orders')) || [];
+        let settings = JSON.parse(localStorage.getItem('coffee_settings')) || {sugar:'70', ice:'full'};
+        
+        let editingId = null;
+        let pendingItem = null;
+        
+        const DEFAULT_MENU = [
+            {id:1,name:'Cà Phê Đen',price:20000,emoji:'☕'},
+            {id:2,name:'Cà Phê Sữa',price:25000,emoji:'🥛'},
+            {id:3,name:'Bạc Xỉu',price:30000,emoji:'🍵'},
+            {id:4,name:'Trà Đá',price:10000,emoji:'🧊'},
+            {id:5,name:'Trà Chanh',price:18000,emoji:'🍋'},
+            {id:6,name:'Sinh Tố Bơ',price:30000,emoji:'🥑'},
+            {id:7,name:'Nước Cam',price:22000,emoji:'🍊'},
+            {id:8,name:'Sữa Tươi',price:15000,emoji:'🥛'},
+            {id:9,name:'Cacao',price:25000,emoji:'🍫'},
+            {id:10,name:'Matcha',price:35000,emoji:'🍵'},
+            {id:11,name:'Kem Vien',price:25000,emoji:'🍦'},
+            {id:12,name:'Bánh Flan',price:15000,emoji:'🍮'}
+        ];
+        
+        if (!menu) {
+            menu = DEFAULT_MENU;
+            localStorage.setItem('coffee_menu', JSON.stringify(menu));
+        }
+        
+        function fmt(n) {return n.toLocaleString('vi') + 'đ'}
+        
+        function renderMenu() {
+            document.getElementById('menuGrid').innerHTML = menu.map(m => `
+                <div class="menu-item">
+                    <div class="emoji">${m.emoji}</div>
+                    <div class="name">${m.name}</div>
+                    <div class="price">${fmt(m.price)}</div>
+                    <button class="add-btn" onclick="showOptions(${m.id})">+ Thêm</button>
+                </div>
+            `).join('');
+        }
+        
+        function renderEditList() {
+            document.getElementById('editList').innerHTML = menu.map(m => {
+                const sizes = [];
+                if (m.sizePrice?.M > 0) sizes.push(`M+${fmt(m.sizePrice.M)}`);
+                if (m.sizePrice?.L > 0) sizes.push(`L+${fmt(m.sizePrice.L)}`);
+                return `<div class="edit-item">
+                    <div class="emoji">${m.emoji}</div>
+                    <div class="info">
+                        <div class="name">${m.name}</div>
+                        <div class="price">${fmt(m.price)}${sizes.length ? ' | ' + sizes.join(', ') : ''}</div>
+                    </div>
+                    <button class="edit-btn" onclick="openEditModal(${m.id})">✏️</button>
+                    <button class="delete-item-btn" onclick="deleteItem(${m.id})">🗑️</button>
+                </div>`;
+            }).join('');
+        }
+        
+        let pendingSizePrice = {S: 0, M: 5000, L: 10000};
+        
+        function showOptions(id) {
+            const item = menu.find(m => m.id === id);
+            pendingItem = {...item, size: 'S', sugar: settings.sugar, ice: settings.ice};
+            const basePrice = item.price;
+            
+            document.getElementById('optionsTitle').innerHTML = `${item.emoji} ${item.name}<br><span style="font-size:14px;color:#ff6b35" id="optPriceDisplay">${fmt(basePrice)}</span>`;
+            document.getElementById('optionsContent').innerHTML = `
+                <div class="option-group">
+                    <div class="option-label">Đường:</div>
+                    <div class="option-row" id="optSugar">
+                        <button class="option-btn ${settings.sugar==='100'?'selected':''}" data-val="100">100%</button>
+                        <button class="option-btn ${settings.sugar==='70'?'selected':''}" data-val="70">70%</button>
+                        <button class="option-btn ${settings.sugar==='50'?'selected':''}" data-val="50">50%</button>
+                        <button class="option-btn ${settings.sugar==='30'?'selected':''}" data-val="30">30%</button>
+                        <button class="option-btn ${settings.sugar==='0'?'selected':''}" data-val="0">0%</button>
+                    </div>
+                </div>
+                <div class="option-group">
+                    <div class="option-label">Đá:</div>
+                    <div class="option-row" id="optIce">
+                        <button class="option-btn ${settings.ice==='full'?'selected':''}" data-val="full">Nhiều</button>
+                        <button class="option-btn ${settings.ice==='normal'?'selected':''}" data-val="normal">Bình thường</button>
+                        <button class="option-btn ${settings.ice==='less'?'selected':''}" data-val="less">Ít</button>
+                        <button class="option-btn ${settings.ice==='none'?'selected':''}" data-val="none">Không</button>
+                    </div>
+                </div>
+                <div class="option-group">
+                    <div class="option-label">Size (phụ thu):</div>
+                    <div class="option-row" id="optSize">
+                        <button class="option-btn selected" data-val="S" data-price="${item.sizePrice?.S || 0}">S ${(item.sizePrice?.S || 0) > 0 ? '(+' + fmt(item.sizePrice.S) + ')' : '(base)'}</button>
+                        <button class="option-btn" data-val="M" data-price="${item.sizePrice?.M || 5000}">M (+${fmt(item.sizePrice?.M || 5000)})</button>
+                        <button class="option-btn" data-val="L" data-price="${item.sizePrice?.L || 10000}">L (+${fmt(item.sizePrice?.L || 10000)})</button>
+                    </div>
+                </div>
+            `;
+            bindOptionBtns('optSugar', v => pendingItem.sugar = v);
+            bindOptionBtns('optIce', v => pendingItem.ice = v);
+            bindOptionBtns('optSize', v => {
+                pendingItem.size = v;
+                const extraPrice = parseInt(document.querySelector('#optSize .selected')?.dataset.price) || 0;
+                document.getElementById('optPriceDisplay').textContent = fmt(basePrice + extraPrice);
+            });
+            document.getElementById('optionsModal').classList.add('show');
+        }
+        
+        function bindOptionBtns(groupId, callback) {
+            document.getElementById(groupId).querySelectorAll('.option-btn').forEach(btn => {
+                btn.onclick = () => {
+                    document.getElementById(groupId).querySelectorAll('.option-btn').forEach(b => b.classList.remove('selected'));
+                    btn.classList.add('selected');
+                    callback(btn.dataset.val);
+                };
+            });
+        }
+        
+        function confirmAddToCart() {
+            const exist = cart.find(c => c.id === pendingItem.id && c.sugar === pendingItem.sugar && c.ice === pendingItem.ice && c.size === pendingItem.size);
+            const sizePrices = pendingItem.sizePrice || {S:0, M:5000, L:10000};
+            const sizePrice = sizePrices[pendingItem.size] || 0;
+            if (exist) {
+                exist.qty++;
+            } else {
+                cart.push({...pendingItem, qty: 1, price: pendingItem.price + sizePrice});
+            }
+            saveCart();
+            updateBadge();
+            closeOptionsModal();
+            showToast(`Đã thêm ${pendingItem.name}`);
+        }
+        
+        function closeOptionsModal() {
+            document.getElementById('optionsModal').classList.remove('show');
+        }
+        
+        function addToCart(id) {
+            const item = menu.find(m => m.id === id);
+            const exist = cart.find(c => c.id === id);
+            if (exist) exist.qty++; else cart.push({...item, qty:1, sugar: settings.sugar, ice: settings.ice, size: 'S', price: item.price});
+            saveCart();
+            updateBadge();
+            showToast(`Đã thêm ${item.name}`);
+        }
+        
+        function saveCart() {localStorage.setItem('coffee_cart', JSON.stringify(cart))}
+        
+        function updateBadge() {
+            const n = cart.reduce((s,i) => s + i.qty, 0);
+            document.getElementById('cartBadge').textContent = n;
+            document.getElementById('tabCartNum').textContent = n;
+        }
+        
+        function renderCart() {
+            const items = document.getElementById('cartItems');
+            const empty = document.getElementById('cartEmpty');
+            const summary = document.getElementById('cartSummary');
+            
+            if (!cart.length) {
+                items.innerHTML = '';
+                empty.style.display = 'block';
+                summary.style.display = 'none';
+                return;
+            }
+            
+            empty.style.display = 'none';
+            summary.style.display = 'block';
+            
+            items.innerHTML = cart.map((c,i) => {
+                const sugarText = {100:'100% đường',70:'70% đường',50:'50% đường',30:'30% đường',0:'0% đường'}[c.sugar] || '';
+                const iceText = {full:'Nhiều đá',normal:'Bình thường',less:'Ít đá',none:'Không đá'}[c.ice] || '';
+                return `
+                <div class="cart-item">
+                    <div class="cart-item-top">
+                        <div class="emoji">${c.emoji}</div>
+                        <div class="info">
+                            <div class="name">${c.name} (${c.size})</div>
+                            <div class="price">${fmt(c.price)}</div>
+                        </div>
+                        <div class="qty-control">
+                            <button class="qty-btn" onclick="changeQty(${i},-1)">−</button>
+                            <span class="qty-num">${c.qty}</span>
+                            <button class="qty-btn" onclick="changeQty(${i},1)">+</button>
+                        </div>
+                        <button class="remove-btn" onclick="removeItem(${i})">✕</button>
+                    </div>
+                    <div class="cart-options">${sugarText} • ${iceText}</div>
+                </div>
+            `}).join('');
+            
+            const totalItems = cart.reduce((s,i) => s + i.qty, 0);
+            const totalPrice = cart.reduce((s,i) => s + i.price * i.qty, 0);
+            document.getElementById('totalItems').textContent = totalItems;
+            document.getElementById('totalPrice').textContent = fmt(totalPrice);
+        }
+        
+        function changeQty(idx, delta) {
+            cart[idx].qty += delta;
+            if (cart[idx].qty < 1) cart.splice(idx, 1);
+            saveCart();
+            updateBadge();
+            renderCart();
+        }
+        
+        function removeItem(idx) {
+            cart.splice(idx, 1);
+            saveCart();
+            updateBadge();
+            renderCart();
+        }
+        
+        async function placeOrder() {
+            const name = document.getElementById('customerName').value.trim();
+            if (!name) {showToast('Nhập tên khách!', true);return;}
+            if (!cart.length) {showToast('Giỏ trống!', true);return;}
+            
+            const total = cart.reduce((s,i) => s + i.price * i.qty, 0);
+            const newOrder = {
+                id: Date.now(),
+                customer: name,
+                items: cart.map(i => ({n:i.name, q:i.qty, p:i.price, s:i.sugar, ice:i.ice, sz:i.size})),
+                total,
+                status: 0,
+                time: new Date().toLocaleString('vi-VN',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})
+            };
+            
+            // Lưu local
+            orders.unshift(newOrder);
+            localStorage.setItem('coffee_orders', JSON.stringify(orders));
+            
+            // Gửi lên Firebase (để bếp nhận được)
+            try {
+                await db.collection('orders').add(newOrder);
+            } catch(e) { console.log('Firebase offline'); }
+            
+            // Thông báo cho tab khác cùng trình duyệt + đọc đơn
+            try {
+                const channel = new BroadcastChannel('coffee_orders');
+                const orderInfo = {
+                    type: 'new_order',
+                    customer: name,
+                    items: cart.map(i => `${i.qty} ${i.name}`).join(', ')
+                };
+                channel.postMessage(orderInfo);
+                channel.close();
+            } catch(e) {}
+            
+            cart = [];
+            document.getElementById('customerName').value = '';
+            saveCart();
+            updateBadge();
+            renderCart();
+            renderOrders();
+            renderKitchen();
+            switchTab('orders');
+            showToast('Đặt hàng thành công!');
+        }
+        
+        // Lắng nghe đơn mới từ Firebase (dành cho máy bếp)
+        let audioEl = null;
+        
+        function speakOrder(text) {
+            if (!audioEl) audioEl = new Audio();
+            audioEl.pause();
+            audioEl.src = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(text)}&tl=vi&client=tw-ob`;
+            audioEl.volume = 1;
+            audioEl.play().catch(() => {});
+        }
+        
+        function speakOrderWeb(text) {
+            if ('speechSynthesis' in window) {
+                speechSynthesis.cancel();
+                const utter = new SpeechSynthesisUtterance(text);
+                utter.lang = 'vi-VN';
+                utter.rate = 0.9;
+                utter.pitch = 1.3;
+                const voices = speechSynthesis.getVoices();
+                let voice = voices.find(v => v.lang.includes('vi') && (v.name.includes('Female') || v.name.includes('female')));
+                if (!voice) voice = voices.find(v => v.lang.includes('vi'));
+                if (!voice) voice = voices.find(v => v.name.includes('Google') && v.lang.includes('vi'));
+                if (voice) utter.voice = voice;
+                speechSynthesis.speak(utter);
+            }
+        }
+        
+        function listenForOrders() {
+            // Lắng nghe BroadcastChannel để nhận thông báo ngay lập tức
+            try {
+                const channel = new BroadcastChannel('coffee_orders');
+                channel.onmessage = (e) => {
+                    if (e.data?.type === 'new_order') {
+                        orders = JSON.parse(localStorage.getItem('coffee_orders')) || [];
+                        renderOrders();
+                        renderKitchen();
+                        showToast('📦 Có đơn mới!');
+                        speakOrder(`Đơn mới. Khách hàng ${e.data.customer}. ${e.data.items}`);
+                    }
+                };
+            } catch(e) {}
+
+            // Refresh định kỳ mỗi 3 giây từ localStorage
+            setInterval(() => {
+                const stored = localStorage.getItem('coffee_orders');
+                if (stored) {
+                    const storedOrders = JSON.parse(stored);
+                    if (JSON.stringify(storedOrders) !== JSON.stringify(orders)) {
+                        orders = storedOrders;
+                        renderOrders();
+                    }
+                }
+            }, 3000);
+        }
+        
+        function renderOrders() {
+            const list = document.getElementById('orderList');
+            const empty = document.getElementById('ordersEmpty');
+            
+            if (!orders.length) {list.innerHTML = '';empty.style.display = 'block';return;}
+            empty.style.display = 'none';
+            
+            const sugarTxt = s => ({100:'100%',70:'70%',50:'50%',30:'30%',0:'0%'})[s] || '';
+            const iceTxt = ice => ({full:'Nhiều đá',normal:'Bình thường',less:'Ít đá',none:'Không đá'})[ice] || '';
+            
+            list.innerHTML = orders.map((o,i) => `
+                <div class="order-card">
+                    <div class="order-header">
+                        <div><div class="order-customer">👤 ${o.customer}</div><div class="order-time">${o.time}</div></div>
+                        <div class="order-status ${o.status ? 'status-done' : 'status-making'}">${o.status ? '✓ Xong' : '⏳ Làm'}</div>
+                    </div>
+                    <div class="order-items">${o.items.map(x=>`${x.q}× ${x.n}${x.sz?' ('+x.sz+')':''} - ${sugarTxt(x.s)} - ${iceTxt(x.ice)}`).join('<br>')}</div>
+                    <div class="order-total">Tổng: ${fmt(o.total)}</div>
+                    <div class="order-actions">
+                        <button class="action-btn" style="background:#2196f3;color:#fff" onclick="printOrder(${i})">🖨️ In</button>
+                        <button class="action-btn toggle-btn" onclick="toggleStatus(${i})">${o.status ? '↩ Làm lại' : '✓ Xong'}</button>
+                        <button class="action-btn delete-btn" onclick="deleteOrder(${i})">🗑️</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        function toggleStatus(i) {
+            orders[i].status = orders[i].status ? 0 : 1;
+            localStorage.setItem('coffee_orders', JSON.stringify(orders));
+            try {
+                if (orders[i].fid) db.collection('orders').doc(orders[i].fid).update({status: orders[i].status});
+            } catch(e) {}
+            renderOrders();
+            renderKitchen();
+        }
+        
+        function deleteOrder(i) {
+            const fid = orders[i].fid;
+            orders.splice(i, 1);
+            localStorage.setItem('coffee_orders', JSON.stringify(orders));
+            try {
+                if (fid) db.collection('orders').doc(fid).delete();
+            } catch(e) {}
+            renderOrders();
+            renderKitchen();
+        }
+        
+        function clearAllOrders() {
+            if (!orders.length) return;
+            if (confirm('Xóa tất cả đơn?')) {
+                orders = [];
+                localStorage.setItem('coffee_orders', JSON.stringify(orders));
+                renderOrders();
+                renderKitchen();
+            }
+        }
+        
+        // Settings
+        function openAddModal() {
+            editingId = null;
+            document.getElementById('modalTitle').textContent = '➕ Thêm Món Mới';
+            document.getElementById('itemEmoji').value = '☕';
+            document.getElementById('itemName').value = '';
+            document.getElementById('itemPrice').value = '';
+            document.getElementById('itemSizeS').value = 0;
+            document.getElementById('itemSizeM').value = 5000;
+            document.getElementById('itemSizeL').value = 10000;
+            selectOption('modalSugar', settings.sugar);
+            selectOption('modalIce', settings.ice);
+            document.getElementById('itemModal').classList.add('show');
+        }
+        
+        function openEditModal(id) {
+            const item = menu.find(m => m.id === id);
+            editingId = id;
+            document.getElementById('modalTitle').textContent = '✏️ Sửa Món';
+            document.getElementById('itemEmoji').value = item.emoji;
+            document.getElementById('itemName').value = item.name;
+            document.getElementById('itemPrice').value = item.price;
+            document.getElementById('itemSizeS').value = item.sizePrice?.S || 0;
+            document.getElementById('itemSizeM').value = item.sizePrice?.M || 5000;
+            document.getElementById('itemSizeL').value = item.sizePrice?.L || 10000;
+            selectOption('modalSugar', item.defaultSugar || settings.sugar);
+            selectOption('modalIce', item.defaultIce || settings.ice);
+            document.getElementById('itemModal').classList.add('show');
+        }
+        
+        function closeModal() {
+            document.getElementById('itemModal').classList.remove('show');
+        }
+        
+        function selectOption(groupId, val) {
+            document.getElementById(groupId).querySelectorAll('.option-btn').forEach(b => {
+                b.classList.toggle('selected', b.dataset.val === val);
+            });
+        }
+        
+        function getSelectedOption(groupId) {
+            return document.getElementById(groupId).querySelector('.option-btn.selected')?.dataset.val || '';
+        }
+        
+        function saveItem() {
+            const emoji = document.getElementById('itemEmoji').value.trim() || '☕';
+            const name = document.getElementById('itemName').value.trim();
+            const price = parseInt(document.getElementById('itemPrice').value) || 0;
+            const sizeS = parseInt(document.getElementById('itemSizeS').value) || 0;
+            const sizeM = parseInt(document.getElementById('itemSizeM').value) || 0;
+            const sizeL = parseInt(document.getElementById('itemSizeL').value) || 0;
+            
+            if (!name) {showToast('Nhập tên món!', true);return;}
+            if (price <= 0) {showToast('Nhập giá hợp lệ!', true);return;}
+            
+            const item = {
+                id: editingId || Date.now(),
+                emoji,
+                name,
+                price,
+                sizePrice: { S: sizeS, M: sizeM, L: sizeL },
+                defaultSugar: getSelectedOption('modalSugar'),
+                defaultIce: getSelectedOption('modalIce')
+            };
+            
+            if (editingId) {
+                const idx = menu.findIndex(m => m.id === editingId);
+                menu[idx] = item;
+            } else {
+                menu.push(item);
+            }
+            
+            localStorage.setItem('coffee_menu', JSON.stringify(menu));
+            closeModal();
+            renderMenu();
+            renderEditList();
+            showToast(editingId ? 'Đã cập nhật!' : 'Đã thêm món mới!');
+        }
+        
+        function deleteItem(id) {
+            if (!confirm('Xóa món này?')) return;
+            menu = menu.filter(m => m.id !== id);
+            localStorage.setItem('coffee_menu', JSON.stringify(menu));
+            renderMenu();
+            renderEditList();
+            showToast('Đã xóa món!');
+        }
+        
+        function initEmojiPicker() {
+            document.getElementById('emojiPicker').innerHTML = EMOJIS.map(e => 
+                `<button class="emoji-btn ${e==='☕'?'selected':''}" onclick="selectEmoji('${e}')">${e}</button>`
+            ).join('');
+            document.getElementById('itemEmoji').addEventListener('input', e => {
+                document.querySelectorAll('.emoji-btn').forEach(b => b.classList.remove('selected'));
+            });
+        }
+        
+        function selectEmoji(e) {
+            document.getElementById('itemEmoji').value = e;
+            document.querySelectorAll('.emoji-btn').forEach(b => b.classList.remove('selected'));
+            b = document.querySelector(`.emoji-btn[onclick="selectEmoji('${e}')"]`);
+            if (b) b.classList.add('selected');
+        }
+        
+        function initSettings() {
+            selectOption('defaultSugar', settings.sugar);
+            selectOption('defaultIce', settings.ice);
+            
+            ['defaultSugar','defaultIce'].forEach(gid => {
+                document.getElementById(gid).querySelectorAll('.option-btn').forEach(btn => {
+                    btn.onclick = () => {
+                        document.getElementById(gid).querySelectorAll('.option-btn').forEach(b => b.classList.remove('selected'));
+                        btn.classList.add('selected');
+                        settings[gid === 'defaultSugar' ? 'sugar' : 'ice'] = btn.dataset.val;
+                        localStorage.setItem('coffee_settings', JSON.stringify(settings));
+                    };
+                });
+            });
+        }
+        
+        function switchTab(tab) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            document.querySelector(`[data-tab="${tab}"]`).classList.add('active');
+            document.getElementById(tab + 'Content').classList.add('active');
+            if (tab === 'cart') renderCart();
+            if (tab === 'orders') renderOrders();
+            if (tab === 'kitchen') renderKitchen();
+            if (tab === 'settings') renderEditList();
+        }
+        
+        let kitchenTab = 'making';
+        
+        function switchKitchenTab(tab) {
+            kitchenTab = tab;
+            renderKitchen();
+        }
+        
+        function renderKitchen() {
+            const making = orders.filter(o => o.status === 0);
+            const done = orders.filter(o => o.status === 1);
+            
+            document.getElementById('kitchenBadge').textContent = making.length;
+            document.getElementById('kitchenMakingCount').textContent = making.length;
+            document.getElementById('kitchenDoneCount').textContent = done.length;
+            
+            const btnMaking = document.getElementById('kitchenTabMaking');
+            const btnDone = document.getElementById('kitchenTabDone');
+            btnMaking.style.background = kitchenTab === 'making' ? '#fff3e0' : '#fff';
+            btnMaking.style.borderColor = kitchenTab === 'making' ? '#ff9800' : '#ddd';
+            btnMaking.style.color = kitchenTab === 'making' ? '#e65100' : '#666';
+            btnDone.style.background = kitchenTab === 'done' ? '#e8f5e9' : '#fff';
+            btnDone.style.borderColor = kitchenTab === 'done' ? '#4caf50' : '#ddd';
+            btnDone.style.color = kitchenTab === 'done' ? '#2e7d32' : '#666';
+            
+            const sugarTxt = s => ({100:'100%',70:'70%',50:'50%',30:'30%',0:'0%'})[s] || '';
+            const iceTxt = ice => ({full:'Nhiều đá',normal:'BT',less:'Ít đá',none:'Ko đá'})[ice] || '';
+            
+            const list = document.getElementById('kitchenList');
+            
+            if (kitchenTab === 'making') {
+                list.innerHTML = making.length ? 
+                    making.map((o, i) => {
+                        const realIdx = orders.findIndex(x => x.id === o.id);
+                        const itemsText = o.items.map(x => {
+                            let text = `${x.q} ${x.n}`;
+                            if (x.sz) text += ` size ${x.sz}`;
+                            text += ` đường ${x.s || '70'} phần trăm`;
+                            text += ` đá ${iceTxt(x.ice)}`;
+                            return text;
+                        }).join('. ');
+                        const fullText = `Khách hàng ${o.customer}. ${itemsText}`;
+                        return `<div style="background:#fff3e0;border-radius:12px;padding:14px;margin-bottom:10px;border:2px solid #ff9800">
+                            <div style="display:flex;justify-content:space-between;align-items:center">
+                                <div style="font-weight:700;font-size:16px">👤 ${o.customer}</div>
+                                <button onclick="speakOrder('${fullText.replace(/'/g, "\\'")}')" style="background:#9c27b0;color:#fff;border:none;padding:8px 12px;border-radius:6px;font-size:16px;cursor:pointer">🔊</button>
+                            </div>
+                            <div style="color:#666;font-size:12px;margin-bottom:8px">${o.time}</div>
+                            ${o.items.map(x => `<div style="margin:4px 0">${x.q}× <b>${x.n}</b> ${x.sz?'('+x.sz+')':''} - ${sugarTxt(x.s)} - ${iceTxt(x.ice)}</div>`).join('')}
+                            <button onclick="toggleStatus(${realIdx})" style="background:#4caf50;color:#fff;border:none;padding:10px 20px;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;margin-top:10px;width:100%">✓ HOÀN THÀNH</button>
+                        </div>`;
+                    }).join('') :
+                    `<div style="text-align:center;padding:40px;color:#999">Không có đơn nào đang làm</div>`;
+            } else {
+                list.innerHTML = done.length ? 
+                    done.map(o => `<div style="background:#e8f5e9;border-radius:8px;padding:12px;margin-bottom:8px">
+                        <span style="font-weight:700">👤 ${o.customer}</span>
+                        <span style="color:#4caf50;margin-left:8px">✓</span>
+                        <div style="color:#666;font-size:13px;margin-top:4px">${o.items.map(x=>x.n).join(', ')}</div>
+                    </div>`).join('') :
+                    `<div style="text-align:center;padding:40px;color:#999">Không có đơn nào hoàn thành</div>`;
+            }
+        }
+        
+        function showToast(msg, err) {
+            const t = document.getElementById('toast');
+            t.textContent = (err ? '⚠️ ' : '✅ ') + msg;
+            t.style.background = err ? '#f44336' : '#333';
+            t.classList.add('show');
+            setTimeout(() => t.classList.remove('show'), 2000);
+        }
+        
+        // ===== PRINTER FUNCTIONS =====
+        let printerDevice = null;
+        let printerChar = null;
+        
+        const ESC = 0x1B;
+        const GS = 0x1D;
+        
+        function enc(str) { return new TextEncoder().encode(str); }
+        
+        function escPosCmd(cmd) { return new Uint8Array(cmd); }
+        
+        function initPrinter() {
+            return escPosCmd([ESC, 0x40]);
+        }
+        
+        function alignCenter() { return escPosCmd([ESC, 0x61, 0x01]); }
+        function alignLeft() { return escPosCmd([ESC, 0x61, 0x00]); }
+        function boldOn() { return escPosCmd([ESC, 0x45, 0x01]); }
+        function boldOff() { return escPosCmd([ESC, 0x45, 0x00]); }
+        function doubleHeightOn() { return escPosCmd([GS, 0x21, 0x10]); }
+        function doubleHeightOff() { return escPosCmd([GS, 0x21, 0x00]); }
+        function lineFeed() { return escPosCmd([0x0A]); }
+        function cutPaper() { return escPosCmd([GS, 0x56, 0x00]); }
+        
+        async function connectPrinter() {
+            if (!navigator.bluetooth) {
+                showToast('Trình duyệt không hỗ trợ Bluetooth!', true);
+                return;
+            }
+            try {
+                showToast('Đang tìm máy in...', false);
+                const device = await navigator.bluetooth.requestDevice({
+                    filters: [{ services: ['0000ffe0-0000-1000-8000-00805f9b34fb'] }, { services: ['49535343-fe7d-4ae5-8fa9-9fafd205e455'] }]
+                });
+                if (!device) return;
+                
+                device.addEventListener('gattserverdisconnected', () => {
+                    printerDevice = null;
+                    updatePrinterStatus('🔴 Mất kết nối');
+                });
+                
+                const server = await device.gatt.connect();
+                const service = await server.getPrimaryService('0000ffe0-0000-1000-8000-00805f9b34fb');
+                printerChar = await service.getCharacteristic('0000ffe1-0000-1000-8000-00805f9b34fb');
+                printerDevice = device;
+                localStorage.setItem('printer_name', device.name || 'Máy in Bluetooth');
+                updatePrinterStatus('🟢 ' + (device.name || 'Máy in Bluetooth'));
+                showToast('Kết nối máy in thành công!');
+            } catch (e) {
+                if (e.name !== 'NotFoundError') {
+                    showToast('Kết nối thất bại: ' + e.message, true);
+                }
+                updatePrinterStatus('🔴 Chưa kết nối');
+            }
+        }
+        
+        function updatePrinterStatus(text) {
+            document.getElementById('printerStatusText').textContent = text;
+        }
+        
+        async function sendToPrinter(data) {
+            if (!printerChar) {
+                showToast('Chưa kết nối máy in!', true);
+                return false;
+            }
+            try {
+                const buffer = data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength);
+                await printerChar.writeValue(buffer);
+                return true;
+            } catch (e) {
+                showToast('Lỗi in: ' + e.message, true);
+                return false;
+            }
+        }
+        
+        async function buildAndPrintReceipt(order, isTest = false) {
+            const shop = JSON.parse(localStorage.getItem('shop_info')) || {name: 'Coffee Order', info: ''};
+            let data = [];
+            
+            data.push(...initPrinter());
+            data.push(...alignCenter());
+            data.push(...boldOn());
+            data.push(...doubleHeightOn());
+            data.push(shop.name || 'COFFEE ORDER');
+            data.push(...doubleHeightOff());
+            data.push(...boldOff());
+            data.push(...lineFeed());
+            
+            if (shop.info) {
+                data.push(...enc(shop.info));
+                data.push(...lineFeed());
+            }
+            
+            data.push(...lineFeed());
+            data.push(...alignLeft());
+            
+            const sugarTxt = s => ({100:'100%',70:'70%',50:'50%',30:'30%',0:'0%'})[s] || '';
+            const iceTxt = i => ({full:'Nhiều đá',normal:'BT',less:'Ít đá',none:'Ko đá'})[i] || '';
+            
+            if (!isTest) {
+                data.push(...boldOn());
+                data.push(...enc('--- HÓA ĐƠN ---'));
+                data.push(...boldOff());
+                data.push(...lineFeed());
+                data.push(...enc(`Khách: ${order.customer}`));
+                data.push(...lineFeed());
+                data.push(...enc(`Giờ: ${order.time}`));
+                data.push(...lineFeed());
+                data.push(...enc('===================='));
+                data.push(...lineFeed());
+            } else {
+                data.push(...enc('===== TEST PRINT ====='));
+                data.push(...lineFeed());
+            }
+            
+            order.items.forEach(item => {
+                const name = item.n.substring(0, 12);
+                const qty = item.q.toString();
+                const price = fmt(item.p * item.q);
+                const pad = 32 - name.length - qty.length - price.length;
+                data.push(...enc(`${qty}x ${name}${' '.repeat(Math.max(1, pad))}${price}`));
+                data.push(...lineFeed());
+                if (item.s || item.ice) {
+                    const opts = [];
+                    if (item.sz) opts.push(item.sz);
+                    if (item.s) opts.push(sugarTxt(item.s));
+                    if (item.ice) opts.push(iceTxt(item.ice));
+                    data.push(...enc(`   ${opts.join(' | ')}`));
+                    data.push(...lineFeed());
+                }
+            });
+            
+            data.push(...lineFeed());
+            data.push(...enc('--------------------'));
+            data.push(...lineFeed());
+            data.push(...boldOn());
+            data.push(...enc(`TỔNG CỘNG: ${fmt(order.total)}`));
+            data.push(...boldOff());
+            data.push(...lineFeed());
+            data.push(...lineFeed());
+            data.push(...alignCenter());
+            data.push(...enc('Cảm ơn quý khách!'));
+            data.push(...lineFeed());
+            data.push(...lineFeed());
+            data.push(...lineFeed());
+            data.push(...cutPaper());
+            
+            const uint8 = new Uint8Array(data);
+            const ok = await sendToPrinter(uint8);
+            if (!ok && !isTest) {
+                showToast('In thất bại, thử kết nối lại máy in', true);
+            }
+            return ok;
+        }
+        
+        async function printOrder(index) {
+            if (!printerChar) {
+                showToast('Chưa kết nối máy in! Vào Cài Đặt để kết nối.', true);
+                return;
+            }
+            showToast('Đang in...');
+            await buildAndPrintReceipt(orders[index]);
+        }
+        
+        async function testPrint() {
+            if (!printerChar) {
+                showToast('Chưa kết nối máy in!', true);
+                return;
+            }
+            const testOrder = {
+                customer: 'Khách Test',
+                time: new Date().toLocaleString('vi-VN'),
+                items: [
+                    {n:'Cà Phê Sữa',q:2,p:25000,s:'70',ice:'full',sz:'M'},
+                    {n:'Trà Chanh',q:1,p:18000,s:'50',ice:'normal',sz:'S'}
+                ],
+                total: 68000
+            };
+            showToast('Đang in test...');
+            await buildAndPrintReceipt(testOrder, true);
+            showToast('Test print sent!');
+        }
+        
+        function saveShopInfo() {
+            const info = {
+                name: document.getElementById('shopName').value,
+                info: document.getElementById('shopInfo').value
+            };
+            localStorage.setItem('shop_info', JSON.stringify(info));
+        }
+        
+        function loadShopInfo() {
+            const info = JSON.parse(localStorage.getItem('shop_info')) || {name:'', info:''};
+            document.getElementById('shopName').value = info.name || 'Coffee Order';
+            document.getElementById('shopInfo').value = info.info || '';
+        }
+        
+        // Auto-reconnect printer
+        async function tryReconnectPrinter() {
+            if (!navigator.bluetooth) return;
+            const name = localStorage.getItem('printer_name');
+            if (!name) return;
+            try {
+                const devices = await navigator.bluetooth.getDevices();
+                for (const d of devices) {
+                    if (d.name === name || d.name?.includes('Printer') || d.name?.includes('XPrinter')) {
+                        try {
+                            const server = await d.gatt.connect();
+                            const service = await server.getPrimaryService('0000ffe0-0000-1000-8000-00805f9b34fb');
+                            printerChar = await service.getCharacteristic('0000ffe1-0000-1000-8000-00805f9b34fb');
+                            printerDevice = d;
+                            updatePrinterStatus('🟢 ' + (d.name || 'Máy in'));
+                            showToast('Đã kết nối lại máy in');
+                        } catch(e) {}
+                        break;
+                    }
+                }
+            } catch(e) {}
+        }
+        
+        function refreshOrders() {
+            orders = JSON.parse(localStorage.getItem('coffee_orders')) || [];
+            renderOrders();
+            renderKitchen();
+            showToast('Đã làm mới đơn hàng');
+        }
+
+        // Init
+        document.querySelectorAll('.tab').forEach(t => t.onclick = () => switchTab(t.dataset.tab));
+        initEmojiPicker();
+        initSettings();
+        renderMenu();
+        updateBadge();
+        renderCart();
+        renderOrders();
+        renderKitchen();
+        loadShopInfo();
+        tryReconnectPrinter();
+        listenForOrders();
+
+        // Nút refresh cho tab Đơn
+        const refreshBtn = document.createElement('button');
+        refreshBtn.id = 'refreshBtn';
+        refreshBtn.innerHTML = '🔄 Refresh';
+        refreshBtn.style.cssText = 'background:#2196f3;color:#fff;padding:10px;margin:10px;border:none;border-radius:8px;position:sticky;top:70px;z-index:98;cursor:pointer';
+        refreshBtn.onclick = refreshOrders;
+        document.getElementById('ordersContent').prepend(refreshBtn);
+        
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('service-worker.js').catch(()=>{});
+        }
+    </script>
+</body>
+</html>

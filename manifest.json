@@ -1,0 +1,26 @@
+{
+  "name": "SUMO QUÁN - Order Management",
+  "short_name": "SUMO QUÁN",
+  "description": "App quản lý đặt món cho quán ăn",
+  "start_url": "/login.html",
+  "display": "standalone",
+  "background_color": "#1a1a2e",
+  "theme_color": "#c41e3a",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' rx='96' fill='%23c41e3a'/><text x='50%25' y='55%25' dominant-baseline='middle' text-anchor='middle' font-size='280'>🍜</text></svg>",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect width='192' height='192' rx='32' fill='%23c41e3a'/><text x='50%25' y='55%25' dominant-baseline='middle' text-anchor='middle' font-size='100'>🍜</text></svg>",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["food", "business"],
+  "lang": "vi"
+}

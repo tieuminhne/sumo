@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+    <meta name="theme-color" content="#1a1a2e">
+    <title>Đăng Ký Quán - SUMO QUÁN</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&display=swap');
+        *{box-sizing:border-box;margin:0;padding:0}
+        :root{--primary:#c41e3a;--gold:#d4af37;--dark:#1a1a2e}
+        html,body{min-height:100vh;font-family:'Poppins',sans-serif;background:linear-gradient(135deg,#1a1a2e 0%,#16213e 50%,#1a1a2e 100%);color:#fff;display:flex;align-items:center;justify-content:center}
+        .auth-container{width:100%;max-width:420px;padding:20px}
+        .auth-card{background:linear-gradient(145deg,rgba(255,255,255,0.08) 0%,rgba(255,255,255,0.02) 100%);backdrop-filter:blur(20px);border-radius:28px;padding:40px 28px;box-shadow:0 30px 80px rgba(0,0,0,0.5);border:1px solid rgba(255,255,255,0.1);text-align:center}
+        .auth-logo{font-size:60px;margin-bottom:16px}
+        .auth-title{font-size:28px;font-weight:800;margin-bottom:8px;color:#fff}
+        .auth-subtitle{font-size:14px;color:rgba(255,255,255,0.5);margin-bottom:32px}
+        .form-group{margin-bottom:18px;text-align:left}
+        .form-label{font-size:11px;font-weight:700;color:var(--gold);margin-bottom:8px;display:block;text-transform:uppercase;letter-spacing:1px}
+        .form-input{width:100%;padding:16px;font-size:15px;border:2px solid rgba(255,255,255,0.15);border-radius:14px;background:rgba(255,255,255,0.05);color:#fff;outline:0;transition:all 0.3s}
+        .form-input:focus{border-color:var(--gold);box-shadow:0 0 0 4px rgba(212,175,55,0.15)}
+        .form-input::placeholder{color:rgba(255,255,255,0.3)}
+        .auth-btn{width:100%;padding:18px;background:linear-gradient(135deg,var(--primary) 0%,#a01830 100%);color:#fff;border:none;border-radius:16px;font-size:17px;font-weight:800;cursor:pointer;box-shadow:0 10px 30px rgba(196,30,58,0.4);transition:all 0.3s;letter-spacing:1px;text-transform:uppercase;margin-top:8px}
+        .auth-btn:hover{transform:translateY(-2px);box-shadow:0 15px 45px rgba(196,30,58,0.5)}
+        .auth-btn:disabled{opacity:0.5;cursor:not-allowed;transform:none}
+        .auth-link{margin-top:24px;font-size:14px;color:rgba(255,255,255,0.5)}
+        .auth-link a{color:var(--gold);text-decoration:none;font-weight:700}
+        .auth-link a:hover{text-decoration:underline}
+        .auth-error{background:rgba(196,30,58,0.2);color:#ff6b6b;padding:14px;border-radius:12px;font-size:13px;margin-bottom:16px;display:none;border:1px solid rgba(196,30,58,0.3)}
+        .auth-error.show{display:block}
+        .auth-success{background:rgba(76,175,80,0.2);color:#4caf50;padding:14px;border-radius:12px;font-size:13px;margin-bottom:16px;display:none;border:1px solid rgba(76,175,80,0.3)}
+        .auth-success.show{display:block}
+        .features{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:24px 0;text-align:left}
+        .feature{background:rgba(255,255,255,0.05);padding:12px;border-radius:12px;font-size:12px;color:rgba(255,255,255,0.6)}
+        .feature span{font-size:20px;display:block;margin-bottom:4px}
+    </style>
+</head>
+<body>
+    <div class="auth-container">
+        <div class="auth-card">
+            <div class="auth-logo">🏪</div>
+            <div class="auth-title">Đăng Ký Quán Mới</div>
+            <div class="auth-subtitle">Tạo tài khoản miễn phí, bắt đầu bán ngay</div>
+
+            <div class="features">
+                <div class="feature"><span>📋</span>Menu tuỳ chỉnh</div>
+                <div class="feature"><span>🍳</span>Bếp realtime</div>
+                <div class="feature"><span>📊</span>Thống kê</div>
+                <div class="feature"><span>💰</span>Miễn phí 100%</div>
+            </div>
+
+            <div class="auth-error" id="authError"></div>
+            <div class="auth-success" id="authSuccess"></div>
+
+            <form onsubmit="handleRegister(event)">
+                <div class="form-group">
+                    <div class="form-label">Tên quán</div>
+                    <input type="text" class="form-input" id="shopName" placeholder="VD: Sumo Quán" required>
+                </div>
+                <div class="form-group">
+                    <div class="form-label">Email</div>
+                    <input type="email" class="form-input" id="regEmail" placeholder="email@example.com" required>
+                </div>
+                <div class="form-group">
+                    <div class="form-label">Mật khẩu (ít nhất 6 ký tự)</div>
+                    <input type="password" class="form-input" id="regPassword" placeholder="Tạo mật khẩu" required minlength="6">
+                </div>
+                <div class="form-group">
+                    <div class="form-label">Xác nhận mật khẩu</div>
+                    <input type="password" class="form-input" id="regPasswordConfirm" placeholder="Nhập lại mật khẩu" required minlength="6">
+                </div>
+                <button type="submit" class="auth-btn" id="regBtn">Đăng Ký Ngay</button>
+            </form>
+
+            <div class="auth-link">
+                Đã có tài khoản? <a href="login.html">Đăng nhập</a>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase.js"></script>
+    <script>
+        async function handleRegister(e) {
+            e.preventDefault();
+            const btn = document.getElementById('regBtn');
+            const errEl = document.getElementById('authError');
+            const successEl = document.getElementById('authSuccess');
+            errEl.classList.remove('show');
+            successEl.classList.remove('show');
+
+            const shopName = document.getElementById('shopName').value.trim();
+            const email = document.getElementById('regEmail').value.trim();
+            const password = document.getElementById('regPassword').value;
+            const confirm = document.getElementById('regPasswordConfirm').value;
+
+            if (password !== confirm) {
+                errEl.textContent = 'Mật khẩu không khớp!';
+                errEl.classList.add('show');
+                return;
+            }
+
+            btn.disabled = true;
+            btn.textContent = 'Đang tạo quán...';
+
+            try {
+                await signUp(email, password, shopName);
+                successEl.textContent = 'Đăng ký thành công! Kiểm tra email để xác nhận, sau đó đăng nhập.';
+                successEl.classList.add('show');
+                btn.textContent = 'Đã đăng ký!';
+            } catch (err) {
+                let msg = err.message;
+                if (msg.includes('already registered')) msg = 'Email đã được đăng ký';
+                errEl.textContent = msg;
+                errEl.classList.add('show');
+                btn.disabled = false;
+                btn.textContent = 'Đăng Ký Ngay';
+            }
+        }
+    </script>
+</body>
+</html>

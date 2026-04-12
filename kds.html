@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+    <meta name="theme-color" content="#1a1a2e">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="mobile-web-app-capable" content="yes">
+    <link rel="manifest" href="manifest.json">
+    <title>Kitchen Display</title>
+    <style>
+        *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+        html,body{min-height:100vh;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#1a1a2e;color:#fff;overflow:hidden}
+        
+        /* Header */
+        .header{background:#16213e;padding:12px 20px;display:flex;justify-content:space-between;align-items:center;position:fixed;top:0;left:0;right:0;z-index:100}
+        .header h1{font-size:22px;font-weight:700;display:flex;align-items:center;gap:10px}
+        .header-stats{display:flex;gap:20px}
+        .stat{text-align:center}
+        .stat-num{font-size:28px;font-weight:700}
+        .stat-label{font-size:11px;color:#aaa;text-transform:uppercase}
+        .stat.pending .stat-num{color:#ffd32a}
+        .stat.done .stat-num{color:#4cd137}
+        .fullscreen-btn{background:#ff6b35;border:none;color:#fff;padding:10px 16px;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer}
+        
+        /* Grid */
+        .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px;padding:120px 16px 16px;height:100vh;align-content:start;overflow-y:auto}
+        
+        /* Order Card */
+        .order-card{background:#fff;color:#333;border-radius:16px;padding:16px;position:relative;transition:all .3s;cursor:pointer;min-height:200px}
+        .order-card:active{transform:scale(.98)}
+        
+        /* Status Colors */
+        .order-card.new{animation:pulse 1s infinite;border:4px solid #ff4757;box-shadow:0 0 20px rgba(255,71,87,.5)}
+        .order-card.new .card-header{background:#ff4757}
+        .order-card.pending{box-shadow:0 4px 15px rgba(0,0,0,.2)}
+        .order-card.pending .card-header{background:#ffd32a}
+        .order-card.done{opacity:.7;background:#e8f5e9}
+        .order-card.done .card-header{background:#4cd137}
+        .order-card.removing{animation:slideOut .5s forwards}
+        
+        @keyframes pulse{
+            0%,100%{transform:scale(1)}
+            50%{transform:scale(1.02)}
+        }
+        @keyframes slideOut{
+            to{transform:translateX(100%);opacity:0}
+        }
+        
+        /* Card Header */
+        .card-header{border-radius:12px;padding:12px 16px;margin:-4px -4px 12px;display:flex;justify-content:space-between;align-items:center}
+        .card-header.new{background:#ff4757;color:#fff}
+        .card-header.pending{background:#ffd32a;color:#333}
+        .card-header.done{background:#4cd137;color:#fff}
+        
+        .customer-info{font-size:20px;font-weight:700}
+        .order-time{font-size:12px;opacity:.8}
+        .time-badge{background:rgba(0,0,0,.2);padding:4px 10px;border-radius:20px;font-size:13px;font-weight:600}
+        
+        /* Items */
+        .items-list{flex:1}
+        .item{padding:12px 0;border-bottom:1px dashed #ddd}
+        .item:last-child{border-bottom:none}
+        .item-qty{font-weight:900;color:#ff6b35;font-size:32px;margin-right:10px;vertical-align:middle}
+        .item-name{font-weight:900;font-size:28px;vertical-align:middle}
+        .item-opts{font-size:16px;color:#856404;margin-top:6px;padding-left:10px;font-weight:600;background:#fff3cd;padding:8px 12px;border-radius:8px}
+        
+        /* Note */
+        .order-note{background:#fff3cd;padding:10px;border-radius:8px;margin-top:10px;font-size:14px;color:#856404}
+        .order-note:empty{display:none}
+        
+        /* Actions */
+        .card-actions{display:flex;gap:8px;margin-top:12px}
+        .action-btn{flex:1;padding:14px;border:none;border-radius:10px;font-size:16px;font-weight:700;cursor:pointer;transition:transform .1s}
+        .action-btn:active{transform:scale(.95)}
+        .btn-done{background:#4cd137;color:#fff}
+        .btn-cancel{background:#ff4757;color:#fff}
+        
+        /* Empty */
+        .empty-state{grid-column:1/-1;text-align:center;padding:60px 20px;color:#666}
+        .empty-icon{font-size:80px;margin-bottom:20px}
+        .empty-text{font-size:24px;font-weight:600}
+        
+        /* Sound toggle */
+        .sound-btn{position:fixed;bottom:20px;right:20px;width:56px;height:56px;border-radius:50%;border:none;font-size:24px;cursor:pointer;z-index:100;background:#333;color:#fff;box-shadow:0 4px 15px rgba(0,0,0,.3)}
+        .sound-btn.muted{opacity:.5}
+        
+        /* Tablet landscape */
+        @media (orientation:landscape) and (max-height:600px) {
+            .header{padding:8px 16px}
+            .header h1{font-size:18px}
+            .stat-num{font-size:22px}
+            .grid{padding-top:70px}
+            .order-card{min-height:160px;padding:12px}
+            .customer-info{font-size:16px}
+            .item{font-size:14px;padding:6px 0}
+            .action-btn{padding:10px;font-size:14px}
+        }
+        
+        /* Fullscreen mode */
+        :fullscreen .header{background:#0f0f23}
+        :fullscreen .grid{background:#1a1a2e}
+        
+        /* Refresh button */
+        .refresh-btn{background:#333;border:none;color:#fff;padding:8px 12px;border-radius:6px;font-size:12px;cursor:pointer}
+        
+        /* Status label */
+        .status-label{font-size:14px;font-weight:600;padding:4px 12px;border-radius:20px;background:rgba(255,255,255,.3)}
+        
+        /* Tabs */
+        .kds-tabs{position:fixed;top:60px;left:0;right:0;z-index:99;display:flex;background:#16213e;border-top:1px solid rgba(255,255,255,.1)}
+        .kds-tab{flex:1;padding:14px;text-align:center;font-size:16px;font-weight:700;border:none;cursor:pointer;transition:all .3s;position:relative;background:transparent;color:rgba(255,255,255,.4)}
+        .kds-tab.active{color:#fff}
+        .kds-tab.active::after{content:'';position:absolute;bottom:0;left:20%;right:20%;height:3px;border-radius:3px 3px 0 0}
+        .kds-tab.tab-making.active{color:#ffd32a}
+        .kds-tab.tab-making.active::after{background:#ffd32a}
+        .kds-tab.tab-done.active{color:#4cd137}
+        .kds-tab.tab-done.active::after{background:#4cd137}
+        .kds-tab .tab-count{display:inline-block;min-width:24px;padding:2px 8px;border-radius:12px;font-size:13px;margin-left:6px}
+        .kds-tab.tab-making .tab-count{background:rgba(255,211,42,.2);color:#ffd32a}
+        .kds-tab.tab-done .tab-count{background:rgba(76,209,55,.2);color:#4cd137}
+    </style>
+</head>
+<body>
+    <header class="header">
+        <h1>🍳 KITCHEN DISPLAY</h1>
+        <div class="header-stats">
+            <div class="stat pending">
+                <div class="stat-num" id="pendingCount">0</div>
+                <div class="stat-label">Đang làm</div>
+            </div>
+            <div class="stat done">
+                <div class="stat-num" id="doneCount">0</div>
+                <div class="stat-label">Hoàn thành</div>
+            </div>
+        </div>
+        <button class="refresh-btn" onclick="loadOrders()">🔄 Refresh</button>
+        <button class="fullscreen-btn" onclick="toggleFullscreen()">⛶ Full</button>
+    </header>
+    
+    <nav class="kds-tabs">
+        <button class="kds-tab tab-making active" onclick="switchKdsTab('making')">🍳 Đang làm <span class="tab-count" id="tabMakingCount">0</span></button>
+        <button class="kds-tab tab-done" onclick="switchKdsTab('done')">✅ Hoàn thành <span class="tab-count" id="tabDoneCount">0</span></button>
+    </nav>
+    
+    <main class="grid" id="orderGrid">
+        <div class="empty-state" id="emptyState">
+            <div class="empty-icon">🍽️</div>
+            <div class="empty-text">Không có đơn nào</div>
+            <div style="margin-top:10px;color:#888">Đơn sẽ xuất hiện khi có khách đặt</div>
+        </div>
+    </main>
+    
+    <button class="sound-btn" id="soundBtn" onclick="toggleSound()">🔊</button>
+    <button onclick="speakAllOrders()" style="position:fixed;bottom:20px;right:90px;width:64px;height:64px;border-radius:50%;border:none;font-size:30px;cursor:pointer;z-index:100;background:#9c27b0;color:#fff;box-shadow:0 4px 20px rgba(156,39,176,.5)">📢</button>
+    <button onclick="cycleSpeed()" id="speedBtn" style="position:fixed;bottom:20px;right:164px;height:56px;padding:0 16px;border-radius:28px;border:none;font-size:14px;font-weight:700;cursor:pointer;z-index:100;background:#333;color:#fff;box-shadow:0 4px 15px rgba(0,0,0,.3)">🐢 1x</button>
+    
+    <audio id="dingSound" preload="auto">
+        <source src="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdH2JkYuDc2VjbHuHj46Gd2dgYGp0fYWIhoJ6c2xscHZ9g4eFg352cG1ucnl/hIaFgn13c3Bxd3yBhYWDgH14dHJ0eH2Bg4SDgH55dnR1eHyAgIOCgH56d3V1d3t+gYKBf315d3Z2eHyAgYGAe3p5dnZ3eXt+gIB/fXp5d3Z3eXp8fn9/fXp5eHd3eHl7fX5/fXt5eHd3eHl6fH19fHp5eHd3eHl6fH19fHp5eHd3eHl6fH19" type="audio/wav">
+    </audio>
+    
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase.js"></script>
+    <script>
+        const POLL_INTERVAL = 1000;
+        const AUTO_HIDE_TIME = 5 * 60 * 1000;
+        const NEW_ORDER_HIGHLIGHT = 30000;
+        
+        let orders = [];
+        let soundEnabled = true;
+        let lastOrderCount = 0;
+        let kdsTab = 'making';
+        let useCloud = false;
+        
+        function switchKdsTab(tab) {
+            kdsTab = tab;
+            document.querySelectorAll('.kds-tab').forEach(t => t.classList.remove('active'));
+            document.querySelector(`.tab-${tab}`).classList.add('active');
+            renderOrders();
+        }
+        
+        // Get orders from localStorage (shared with main app)
+        function getOrders() {
+            return JSON.parse(localStorage.getItem('food_orders')) || [];
+        }
+        
+        // Load and process orders
+        function loadOrders() {
+            const allOrders = getOrders();
+            
+            // Track existing kdsStatus
+            const existingStatus = {};
+            orders.forEach(o => {
+                if (o.id) existingStatus[o.id] = { kdsStatus: o.kdsStatus, createdAt: o.createdAt, completedAt: o.completedAt };
+            });
+            
+            // Process new orders
+            orders = allOrders.map((o, i) => {
+                const existing = existingStatus[o.id];
+                if (existing) {
+                    if (o.status === 1 && existing.kdsStatus !== 'done') {
+                        o.kdsStatus = 'done';
+                        o.completedAt = Date.now();
+                    } else if (o.status === 0 && existing.kdsStatus === 'done') {
+                        o.kdsStatus = 'pending';
+                        o.completedAt = undefined;
+                    } else {
+                        o.kdsStatus = existing.kdsStatus;
+                        o.completedAt = existing.completedAt;
+                    }
+                    o.createdAt = existing.createdAt;
+                } else {
+                    o.kdsStatus = o.status === 1 ? 'done' : 'new';
+                    o.createdAt = Date.now();
+                    if (o.status === 1) o.completedAt = Date.now();
+                }
+                o.elapsed = Date.now() - (o.createdAt || Date.now());
+                return o;
+            });
+            
+            // Auto-hide completed orders (don't save, just filter display)
+            orders = orders.filter(o => {
+                if (o.kdsStatus === 'done' && o.completedAt) {
+                    return Date.now() - o.completedAt < AUTO_HIDE_TIME;
+                }
+                return true;
+            });
+            
+            // Sort
+            orders.sort((a, b) => {
+                if (a.kdsStatus === 'new' && b.kdsStatus !== 'new') return -1;
+                if (a.kdsStatus !== 'new' && b.kdsStatus === 'new') return 1;
+                if (a.kdsStatus === 'pending' && b.kdsStatus === 'done') return -1;
+                if (a.kdsStatus === 'done' && b.kdsStatus === 'pending') return 1;
+                return (b.id || 0) - (a.id || 0);
+            });
+            
+            // Check for new orders
+            const pendingCount = orders.filter(o => o.kdsStatus !== 'done').length;
+            if (pendingCount > lastOrderCount && lastOrderCount > 0) {
+                playSound();
+            }
+            lastOrderCount = pendingCount;
+            
+            renderOrders();
+            updateStats();
+        }
+        
+        function renderOrders() {
+            const grid = document.getElementById('orderGrid');
+            
+            const filtered = kdsTab === 'making' 
+                ? orders.filter(o => o.kdsStatus === 'new' || o.kdsStatus === 'pending')
+                : orders.filter(o => o.kdsStatus === 'done');
+            
+            if (filtered.length === 0) {
+                const msg = kdsTab === 'making' ? 'Không có đơn đang làm' : 'Chưa có đơn hoàn thành';
+                grid.innerHTML = `
+        <div class="empty-state">
+            <div class="empty-icon">${kdsTab === 'making' ? '🍽️' : '✅'}</div>
+            <div class="empty-text">${msg}</div>
+        </div>`;
+                return;
+            }
+            
+            grid.innerHTML = filtered.map(o => {
+                const i = orders.indexOf(o);
+                const status = o.kdsStatus;
+                const isNew = status === 'new';
+                const isPending = status === 'pending';
+                const isDone = status === 'done';
+                const elapsed = getElapsedTime(o.id);
+                
+                const sugarTxt = s => ({100:'100% đường',70:'70% đường',50:'50% đường',30:'30% đường',0:'0% đường'})[s] || '';
+                const iceTxt = i => ({full:'Nhiều đá',normal:'Đá BT',less:'Ít đá',none:'Không đá'})[i] || '';
+                
+                return `
+                <div class="order-card ${status}" data-index="${i}" onclick="handleCardClick(${i})">
+                    <div class="card-header ${status}">
+                        <div>
+                            <div class="customer-info">📌 Bàn ${o.table || '?'}</div>
+                            <div class="order-time">${o.time || ''}</div>
+                        </div>
+                        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+                            <span class="time-badge">${elapsed}</span>
+                            <span class="status-label">${isNew ? '🔴 MỚI' : isPending ? '🟡 LÀM' : '🟢 XONG'}</span>
+                        </div>
+                    </div>
+                    <div class="items-list">
+                        ${(o.items || []).map(item => `
+                            <div class="item">
+                                <span class="item-qty">${item.q}×</span>
+                                <span class="item-name">${item.n}</span>
+                                ${item.sz ? `<span style="color:#ff6b35;font-weight:600"> (${item.sz})</span>` : ''}
+                                ${item.note ? `<div class="item-opts">📝 ${item.note}</div>` : ''}
+                                ${(item.s || item.ice) ? `<div class="item-opts">${[item.sz, sugarTxt(item.s), iceTxt(item.ice)].filter(Boolean).join(' • ')}</div>` : ''}
+                            </div>
+                        `).join('')}
+                    </div>
+                    ${o.note ? `<div class="order-note">📝 ${o.note}</div>` : ''}
+                    <div class="card-actions" onclick="event.stopPropagation()">
+                        ${isNew || isPending ? `<button class="action-btn btn-done" onclick="completeOrder(${i})">✅ HOÀN THÀNH</button>` : ''}
+                        ${isDone ? `<button class="action-btn btn-cancel" onclick="deleteOrderKds(${i})">🗑️ XÓA</button>` : ''}
+                    </div>
+                </div>
+            `}).join('');
+        }
+        
+        function getElapsedTime(orderId) {
+            const order = orders.find(o => o.id === orderId);
+            if (!order) return '';
+            const now = Date.now();
+            const orderTime = order.createdAt || now;
+            const diff = Math.max(0, Math.floor((now - orderTime) / 1000));
+            if (diff < 60) return `${diff}s`;
+            if (diff < 3600) return `${Math.floor(diff / 60)}p`;
+            return `${Math.floor(diff / 3600)}h`;
+        }
+        
+        function handleCardClick(index) {
+            const order = orders[index];
+            if (order.kdsStatus === 'new') {
+                startOrder(index);
+            } else if (order.kdsStatus === 'pending') {
+                completeOrder(index);
+            }
+        }
+        
+        function startOrder(index) {
+            if (orders[index]) {
+                orders[index].kdsStatus = 'pending';
+                orders[index].startedAt = Date.now();
+                renderOrders();
+                updateStats();
+            }
+        }
+        
+        function completeOrder(index) {
+            const card = document.querySelector(`[data-index="${index}"]`);
+            const orderId = orders[index]?.id;
+            if (card && orderId) {
+                card.classList.add('removing');
+                
+                const oMsg = orders.find(o => o.id === orderId);
+                if (oMsg) {
+                    oMsg.kdsStatus = 'done';
+                    oMsg.completedAt = Date.now();
+                }
+
+                setTimeout(async () => {
+                    if (useCloud) {
+                        try {
+                            await updateOrderStatus(orderId, 1);
+                            await loadOrdersCloud();
+                        } catch(e) { console.error(e); }
+                    } else {
+                        let allOrders = getOrders();
+                        const storeIdx = allOrders.findIndex(o => o.id === orderId);
+                        if (storeIdx > -1) {
+                            allOrders[storeIdx].status = 1;
+                            localStorage.setItem('food_orders', JSON.stringify(allOrders));
+                            try {
+                                const channel = new BroadcastChannel('food_orders');
+                                channel.postMessage({type:'update'});
+                                channel.close();
+                            } catch(e) {}
+                        }
+                        loadOrders();
+                    }
+                }, 500);
+            }
+        }
+        
+        async function deleteOrderKds(index) {
+            const orderId = orders[index]?.id;
+            if (orderId) {
+                if (useCloud) {
+                    try {
+                        await deleteOrder(orderId);
+                        await loadOrdersCloud();
+                    } catch(e) { console.error(e); }
+                } else {
+                    let allOrders = getOrders();
+                    allOrders = allOrders.filter(o => o.id !== orderId);
+                    localStorage.setItem('food_orders', JSON.stringify(allOrders));
+                    try {
+                        const channel = new BroadcastChannel('food_orders');
+                        channel.postMessage({type:'update'});
+                        channel.close();
+                    } catch(e) {}
+                    loadOrders();
+                }
+            }
+        }
+        
+        function updateStats() {
+            const pending = orders.filter(o => o.kdsStatus !== 'done').length;
+            const done = orders.filter(o => o.kdsStatus === 'done').length;
+            document.getElementById('pendingCount').textContent = pending;
+            document.getElementById('doneCount').textContent = done;
+            document.getElementById('tabMakingCount').textContent = pending;
+            document.getElementById('tabDoneCount').textContent = done;
+        }
+        
+        function playSound() {
+            if (!soundEnabled) return;
+            try {
+                const audio = document.getElementById('dingSound');
+                audio.currentTime = 0;
+                audio.play().catch(() => {});
+            } catch(e) {}
+        }
+        
+        let speechRate = 1;
+        const SPEED_OPTIONS = [
+            {rate: 0.7, label: '🐢 0.7x'},
+            {rate: 1, label: '🔊 1x'},
+            {rate: 1.3, label: '🐇 1.3x'},
+            {rate: 1.6, label: '⚡ 1.6x'},
+            {rate: 2, label: '🚀 2x'}
+        ];
+        let speedIndex = 1;
+        let currentAudio = null;
+        
+        function cycleSpeed() {
+            speedIndex = (speedIndex + 1) % SPEED_OPTIONS.length;
+            speechRate = SPEED_OPTIONS[speedIndex].rate;
+            document.getElementById('speedBtn').textContent = SPEED_OPTIONS[speedIndex].label;
+            if (currentAudio) currentAudio.playbackRate = speechRate;
+        }
+        
+        function speak(text) {
+            if (currentAudio) { currentAudio.pause(); currentAudio = null; }
+            const chunks = [];
+            const maxLen = 180;
+            let remaining = text;
+            while (remaining.length > 0) {
+                if (remaining.length <= maxLen) { chunks.push(remaining); break; }
+                let cut = remaining.lastIndexOf('.', maxLen);
+                if (cut < 20) cut = remaining.lastIndexOf(' ', maxLen);
+                if (cut < 20) cut = maxLen;
+                chunks.push(remaining.substring(0, cut + 1));
+                remaining = remaining.substring(cut + 1).trim();
+            }
+            let i = 0;
+            function playNext() {
+                if (i >= chunks.length) { currentAudio = null; return; }
+                const audio = new Audio();
+                currentAudio = audio;
+                audio.src = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(chunks[i])}&tl=vi&client=tw-ob`;
+                audio.playbackRate = speechRate;
+                audio.onended = () => { i++; playNext(); };
+                audio.play().catch(() => {});
+            }
+            playNext();
+        }
+        
+        function speakOrder(index) {
+            const o = orders[index];
+            if (!o) return;
+            const text = `Bàn ${o.table}. ${o.items.map(x => `${x.q} ${x.n}${x.note ? '. Ghi chú: ' + x.note : ''}`).join('. ')}`;
+            speak(text);
+        }
+        
+        function speakAllOrders() {
+            const making = orders.filter(o => o.kdsStatus === 'new' || o.kdsStatus === 'pending');
+            if (!making.length) return;
+            const text = making.map(o => `Bàn ${o.table}. ${o.items.map(x => `${x.q} ${x.n}${x.note ? '. Ghi chú: ' + x.note : ''}`).join('. ')}`).join('. Tiếp theo. ');
+            speak(text);
+        }
+        
+        function toggleSound() {
+            soundEnabled = !soundEnabled;
+            const btn = document.getElementById('soundBtn');
+            btn.textContent = soundEnabled ? '🔊' : '🔇';
+            btn.classList.toggle('muted', !soundEnabled);
+        }
+        
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(() => {});
+            } else {
+                document.exitFullscreen();
+            }
+        }
+        
+        // Listen for new orders from main app
+        function setupBroadcastChannel() {
+            try {
+                const channel = new BroadcastChannel('food_orders');
+                channel.onmessage = (e) => {
+                    loadOrders();
+                    if (e.data?.type === 'new_order') {
+                        playSound();
+                    }
+                };
+            } catch(e) {
+                console.log('BroadcastChannel not supported');
+            }
+        }
+        
+        async function loadOrdersCloud() {
+            try {
+                const data = await fetchOrders();
+                const existingStatus = {};
+                orders.forEach(o => {
+                    if (o.id) existingStatus[o.id] = { kdsStatus: o.kdsStatus, createdAt: o.createdAt, completedAt: o.completedAt };
+                });
+                orders = data.map(o => {
+                    const existing = existingStatus[o.id];
+                    const items = (o.order_items || []).map(i => ({ n: i.name, q: i.qty, p: i.price, note: i.note }));
+                    const mapped = { id: o.id, table: o.table_number, items, total: o.total, status: o.status, paid: o.paid, time: new Date(o.created_at).toLocaleString('vi-VN',{year:'numeric',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) };
+                    if (existing) {
+                        if (o.status === 1 && existing.kdsStatus !== 'done') {
+                            mapped.kdsStatus = 'done';
+                            mapped.completedAt = Date.now();
+                        } else if (o.status === 0 && existing.kdsStatus === 'done') {
+                            mapped.kdsStatus = 'pending';
+                        } else {
+                            mapped.kdsStatus = existing.kdsStatus;
+                            mapped.completedAt = existing.completedAt;
+                        }
+                        mapped.createdAt = existing.createdAt;
+                    } else {
+                        mapped.kdsStatus = o.status === 1 ? 'done' : 'new';
+                        mapped.createdAt = new Date(o.created_at).getTime();
+                        if (o.status === 1) mapped.completedAt = Date.now();
+                    }
+                    return mapped;
+                });
+                orders.sort((a, b) => {
+                    if (a.kdsStatus === 'new' && b.kdsStatus !== 'new') return -1;
+                    if (a.kdsStatus !== 'new' && b.kdsStatus === 'new') return 1;
+                    if (a.kdsStatus === 'pending' && b.kdsStatus === 'done') return -1;
+                    if (a.kdsStatus === 'done' && b.kdsStatus === 'pending') return 1;
+                    return 0;
+                });
+                const pendingCount = orders.filter(o => o.kdsStatus !== 'done').length;
+                if (pendingCount > lastOrderCount && lastOrderCount > 0) playSound();
+                lastOrderCount = pendingCount;
+                renderOrders();
+                updateStats();
+            } catch(e) { console.error('Cloud load error:', e); }
+        }
+
+        // Init
+        (async function init() {
+            try {
+                const cloudConfigured = typeof SUPABASE_URL !== 'undefined' && SUPABASE_URL !== 'YOUR_SUPABASE_URL';
+                if (cloudConfigured) {
+                    const session = await getSession();
+                    if (!session) {
+                        window.location.href = 'login.html';
+                        return;
+                    }
+                    _currentUser = session.user;
+                    await loadUserShop();
+                    if (_currentShopId) {
+                        useCloud = true;
+                        await loadOrdersCloud();
+                        subscribeOrders(async () => { await loadOrdersCloud(); });
+                        subscribeOrderItems(async () => { await loadOrdersCloud(); });
+                    }
+                }
+            } catch(e) {
+                console.log('Cloud init failed:', e.message);
+            }
+            if (!useCloud) {
+                loadOrders();
+                setupBroadcastChannel();
+                window.addEventListener('storage', (e) => {
+                    if (e.key === 'food_orders') loadOrders();
+                });
+                setInterval(() => { loadOrders(); }, 1000);
+            }
+
+            setInterval(() => {
+                document.querySelectorAll('.order-card').forEach((card, i) => {
+                    const filtered = kdsTab === 'making'
+                        ? orders.filter(o => o.kdsStatus === 'new' || o.kdsStatus === 'pending')
+                        : orders.filter(o => o.kdsStatus === 'done');
+                    const order = filtered[i];
+                    if (order) {
+                        const elapsed = getElapsedTime(order.id);
+                        const badge = card.querySelector('.time-badge');
+                        if (badge) badge.textContent = elapsed;
+                        if (order.kdsStatus === 'new' && order.createdAt) {
+                            if (Date.now() - order.createdAt > NEW_ORDER_HIGHLIGHT) {
+                                card.classList.remove('new');
+                                card.classList.add('pending');
+                                order.kdsStatus = 'pending';
+                            }
+                        }
+                    }
+                });
+            }, 1000);
+
+            setInterval(() => {
+                const before = orders.length;
+                orders = orders.filter(o => {
+                    if (o.kdsStatus === 'done' && o.completedAt) return Date.now() - o.completedAt < AUTO_HIDE_TIME;
+                    return true;
+                });
+                if (orders.length !== before) { renderOrders(); updateStats(); }
+            }, 30000);
+        })();
+        
+        if ('Notification' in window && Notification.permission === 'default') {
+            Notification.requestPermission();
+        }
+        
+        console.log('🍳 Kitchen Display System loaded');
+    </script>
+</body>
+</html>

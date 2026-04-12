@@ -373,6 +373,7 @@
     </div>
     
     <div class="toast" id="toast"></div>
+    <button id="enableSoundBtn" onclick="enableSound()" style="position:fixed;bottom:20px;left:20px;padding:12px 20px;background:#2196f3;border:none;color:#fff;border-radius:30px;font-size:14px;font-weight:600;z-index:100;box-shadow:0 4px 15px rgba(0,0,0,.3);display:none">🔔 Bật thông báo</button>
     
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="supabase.js"></script>
@@ -384,6 +385,15 @@
         let orders = [];
         let settings = {};
         let useCloud = false;
+        let soundUnlocked = false;
+        
+        function enableSound() {
+            soundUnlocked = true;
+            document.getElementById('enableSoundBtn').style.display = 'none';
+            showToast('Đã bật thông báo!');
+        }
+        
+        document.getElementById('enableSoundBtn').style.display = 'block';
         
         let editingId = null;
         let pendingItem = null;

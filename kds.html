@@ -153,6 +153,7 @@
     </main>
     
     <button class="sound-btn" id="soundBtn" onclick="toggleSound()">🔊</button>
+    <button id="enableSoundBtn" onclick="enableSound()" style="position:fixed;bottom:20px;left:20px;padding:12px 20px;background:#2196f3;border:none;color:#fff;border-radius:30px;font-size:14px;font-weight:600;z-index:100;box-shadow:0 4px 15px rgba(0,0,0,.3)">🔔 Bật thông báo</button>
     <button onclick="speakAllOrders()" style="position:fixed;bottom:20px;right:90px;width:64px;height:64px;border-radius:50%;border:none;font-size:30px;cursor:pointer;z-index:100;background:#9c27b0;color:#fff;box-shadow:0 4px 20px rgba(156,39,176,.5)">📢</button>
     <button onclick="cycleSpeed()" id="speedBtn" style="position:fixed;bottom:20px;right:164px;height:56px;padding:0 16px;border-radius:28px;border:none;font-size:14px;font-weight:700;cursor:pointer;z-index:100;background:#333;color:#fff;box-shadow:0 4px 15px rgba(0,0,0,.3)">🐢 1x</button>
     
@@ -169,7 +170,16 @@
         
         let orders = [];
         let soundEnabled = true;
+        let soundUnlocked = false;
         let lastOrderCount = 0;
+        
+        function enableSound() {
+            soundUnlocked = true;
+            document.getElementById('enableSoundBtn').style.display = 'none';
+            const audio = document.getElementById('dingSound');
+            audio.play().then(() => { audio.pause(); audio.currentTime = 0; }).catch(() => {});
+            showToast('Đã bật thông báo!');
+        }
         let kdsTab = 'making';
         let useCloud = false;
         
@@ -404,7 +414,7 @@
         }
         
         function playSound() {
-            if (!soundEnabled) return;
+            if (!soundEnabled || !soundUnlocked) return;
             try {
                 const audio = document.getElementById('dingSound');
                 audio.currentTime = 0;
@@ -431,6 +441,7 @@
         }
         
         function speak(text) {
+            if (!soundUnlocked) { showToast('Bấm "Bật thông báo" trước!'); return; }
             if (currentAudio) { currentAudio.pause(); currentAudio = null; }
             const chunks = [];
             const maxLen = 180;
@@ -611,6 +622,14 @@
         }
         
         console.log('🍳 Kitchen Display System loaded');
+        
+        function showToast(msg) {
+            let t = document.getElementById('toast');
+            if (!t) { t = document.createElement('div'); t.id = 'toast'; t.style.cssText = 'position:fixed;top:80px;left:50%;transform:translateX(-50%);background:#333;color:#fff;padding:12px 24px;border-radius:8px;font-size:14px;z-index:1000'; document.body.appendChild(t); }
+            t.textContent = msg;
+            t.style.opacity = 1;
+            setTimeout(() => { t.style.opacity = 0; }, 2000);
+        }
     </script>
 </body>
 </html>

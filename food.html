@@ -1188,12 +1188,7 @@
         document.getElementById('tableNumber').addEventListener('input', function() {
             const val = this.value.trim();
             const qrDisplay = document.getElementById('tableQRDisplay');
-            if (val) {
-                document.getElementById('qrTableNum').textContent = val;
-                qrDisplay.style.display = 'block';
-            } else {
-                qrDisplay.style.display = 'none';
-            }
+            qrDisplay.style.display = 'none';
         });
         
         setTimeout(loadQR, 500);

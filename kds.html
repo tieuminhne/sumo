@@ -124,7 +124,7 @@
 </head>
 <body>
     <header class="header">
-        <h1>🍳 KITCHEN DISPLAY</h1>
+        <h1>🍳 KITCHEN DISPLAY <span id="appStatus" style="font-size:12px;background:rgba(255,255,255,0.2);padding:2px 8px;border-radius:10px;margin-left:8px;vertical-align:middle;font-family:sans-serif">v3</span></h1>
         <div class="header-stats">
             <div class="stat pending">
                 <div class="stat-num" id="pendingCount">0</div>
@@ -567,17 +567,26 @@
                     }
                     _currentUser = session.user;
                     await loadUserShop();
-                    if (_currentShopId) {
-                        useCloud = true;
-                        await loadOrdersCloud();
-                        subscribeOrders(async () => { await loadOrdersCloud(); });
-                        subscribeOrderItems(async () => { await loadOrdersCloud(); });
-                    }
+                    useCloud = true;
+                    await loadOrdersCloud();
+                    subscribeOrders(async () => { await loadOrdersCloud(); });
+                    subscribeOrderItems(async () => { await loadOrdersCloud(); });
+                    
+                    setInterval(async () => {
+                        try {
+                            await loadOrdersCloud();
+                        } catch(e) {}
+                    }, 5000);
+                    document.getElementById('appStatus').innerText = 'v3 (Cloud)';
                 }
             } catch(e) {
-                console.log('Cloud init failed:', e.message);
+                alert('Không tải được dữ liệu quán: ' + e.message);
+                await signOut();
+                window.location.href = 'login.html';
+                return;
             }
             if (!useCloud) {
+                document.getElementById('appStatus').innerText = 'v3 (Local)';
                 loadOrders();
                 setupBroadcastChannel();
                 window.addEventListener('storage', (e) => {
@@ -585,6 +594,18 @@
                 });
                 setInterval(() => { loadOrders(); }, 1000);
             }
+            
+            document.addEventListener("visibilitychange", async () => {
+                if (document.visibilityState === "visible") {
+                    if (useCloud) {
+                        try {
+                            await loadOrdersCloud();
+                        } catch(e) { console.error('Lỗi khi tải lại dữ liệu:', e); }
+                    } else {
+                        loadOrders();
+                    }
+                }
+            });
 
             setInterval(() => {
                 document.querySelectorAll('.order-card').forEach((card, i) => {

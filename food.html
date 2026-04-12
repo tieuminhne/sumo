@@ -158,7 +158,7 @@
 </head>
 <body>
     <header class="header">
-        <h1>🍜 SUMO QUÁN</h1>
+        <h1>🍜 SUMO QUÁN <span id="appStatus" style="font-size:10px;background:rgba(255,255,255,0.2);padding:2px 8px;border-radius:10px;margin-left:8px;vertical-align:middle">v3</span></h1>
         <div class="cart-badge" id="cartBadge">0</div>
     </header>
     
@@ -387,6 +387,20 @@
         let useCloud = false;
         let soundUnlocked = false;
         
+        async function getMappedOrders() {
+            const data = await fetchOrders();
+            return data.map(o => ({
+                id: o.id,
+                table: o.table_number,
+                items: (o.order_items || []).map(i => ({ n: i.name, q: i.qty, p: i.price, note: i.note })),
+                total: o.total,
+                status: o.status,
+                paid: o.paid,
+                time: new Date(o.created_at).toLocaleString('vi-VN',{year:'numeric',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}),
+                updatedAt: new Date(o.updated_at || o.created_at).getTime()
+            }));
+        }
+        
         function enableSound() {
             soundUnlocked = true;
             document.getElementById('enableSoundBtn').style.display = 'none';
@@ -540,7 +554,7 @@
                 try {
                     const items = cart.map(i => ({name:i.name, qty:i.qty, price:i.price, note:i.note || ''}));
                     const result = await createOrder(table, items);
-                    orders = await fetchOrders();
+                    orders = await getMappedOrders();
                     cart = [];
                     document.getElementById('tableNumber').value = '';
                     document.getElementById('tableQRDisplay').style.display = 'none';
@@ -630,10 +644,11 @@
                 try {
                     const o = orders[i];
                     await updateOrderStatus(o.id, o.status ? 0 : 1);
-                    orders = await fetchOrders();
+                    orders = await getMappedOrders();
                 } catch(e) { showToast('Lỗi: ' + e.message, true); }
             } else {
                 orders[i].status = orders[i].status ? 0 : 1;
+                orders[i].updatedAt = Date.now();
                 localStorage.setItem('food_orders', JSON.stringify(orders));
             }
             renderOrders();
@@ -645,7 +660,7 @@
             if (useCloud) {
                 try {
                     await deleteOrder(orders[i].id);
-                    orders = await fetchOrders();
+                    orders = await getMappedOrders();
                 } catch(e) { showToast('Lỗi: ' + e.message, true); }
             } else {
                 orders.splice(i, 1);
@@ -662,7 +677,7 @@
             if (useCloud) {
                 try {
                     for (const o of orders) await deleteOrder(o.id);
-                    orders = await fetchOrders();
+                    orders = await getMappedOrders();
                 } catch(e) { showToast('Lỗi: ' + e.message, true); return; }
             } else {
                 orders = [];
@@ -792,7 +807,7 @@
         
         function renderKitchen() {
             const making = orders.filter(o => o.status === 0);
-            const done = orders.filter(o => o.status === 1);
+            const done = orders.filter(o => o.status === 1 && (Date.now() - (o.updatedAt || 0) < 5 * 60 * 1000));
             const unpaid = orders.filter(o => o.status === 1 && !o.paid);
             const paid = orders.filter(o => o.status === 1 && o.paid);
             
@@ -877,7 +892,7 @@
             if (useCloud) {
                 try {
                     await updateOrderPaid(orders[idx].id, true);
-                    orders = await fetchOrders();
+                    orders = await getMappedOrders();
                 } catch(e) { showToast('Lỗi: ' + e.message, true); return; }
             } else {
                 orders[idx].paid = true;
@@ -1104,43 +1119,61 @@
                     }
                     _currentUser = session.user;
                     await loadUserShop();
-                    if (_currentShopId) {
-                        useCloud = true;
+                    useCloud = true;
+                    menu = await fetchMenu();
+                    if (!menu.length) {
+                        for (let i = 0; i < DEFAULT_MENU.length; i++) {
+                            await upsertMenuItem({ ...DEFAULT_MENU[i], sort_order: i });
+                        }
                         menu = await fetchMenu();
-                        if (!menu.length) {
-                            for (let i = 0; i < DEFAULT_MENU.length; i++) {
-                                await upsertMenuItem({ ...DEFAULT_MENU[i], sort_order: i });
-                            }
-                            menu = await fetchMenu();
-                        }
-                        orders = await fetchOrders();
-                        const shop = await fetchShop();
-                        if (shop) {
-                            document.getElementById('shopName').value = shop.name || '';
-                            document.getElementById('shopInfo').value = [shop.phone, shop.address].filter(Boolean).join(' - ');
-                            if (shop.qr_image) {
-                                const qrCode = document.querySelector('.qr-code');
-                                if (qrCode) qrCode.innerHTML = `<img src="${shop.qr_image}" alt="QR Code">`;
-                            }
-                        }
-                        subscribeOrders(async () => {
-                            orders = await fetchOrders();
-                            renderKitchen();
-                            renderStats();
-                        });
-                        subscribeOrderItems(async () => {
-                            orders = await fetchOrders();
-                            renderKitchen();
-                            renderStats();
-                        });
-                        document.getElementById('logoutBtn').style.display = 'block';
                     }
+                    orders = await getMappedOrders();
+                    const shop = await fetchShop();
+                    if (shop) {
+                        document.getElementById('shopName').value = shop.name || '';
+                        document.getElementById('shopInfo').value = [shop.phone, shop.address].filter(Boolean).join(' - ');
+                        if (shop.qr_image) {
+                            const qrCode = document.querySelector('.qr-code');
+                            if (qrCode) qrCode.innerHTML = `<img src="${shop.qr_image}" alt="QR Code">`;
+                        }
+                    }
+                    subscribeOrders(async () => {
+                        orders = await getMappedOrders();
+                        renderKitchen();
+                        renderStats();
+                    });
+                    subscribeOrderItems(async () => {
+                        orders = await getMappedOrders();
+                        renderKitchen();
+                        renderStats();
+                    });
+                    
+                    let lastOrdersStr = JSON.stringify(orders);
+                    setInterval(async () => {
+                        try {
+                            const newOrders = await getMappedOrders();
+                            const newStr = JSON.stringify(newOrders);
+                            if (newStr !== lastOrdersStr) {
+                                orders = newOrders;
+                                lastOrdersStr = newStr;
+                                renderKitchen();
+                                renderStats();
+                            }
+                        } catch(e) {}
+                    }, 5000);
+
+                    document.getElementById('logoutBtn').style.display = 'block';
+                    document.getElementById('appStatus').innerText = 'v3 (Cloud)';
                 }
             } catch(e) {
-                console.log('Cloud init failed, using localStorage:', e.message);
+                alert('Không tải được dữ liệu quán: ' + e.message);
+                await signOut();
+                window.location.href = 'login.html';
+                return;
             }
 
             if (!useCloud) {
+                document.getElementById('appStatus').innerText = 'v3 (Local)';
                 menu = JSON.parse(localStorage.getItem('food_menu')) || null;
                 orders = JSON.parse(localStorage.getItem('food_orders')) || [];
                 if (!menu) {
@@ -1150,6 +1183,26 @@
                 loadShopInfo();
                 listenForOrders();
             }
+
+            document.addEventListener("visibilitychange", async () => {
+                if (document.visibilityState === "visible") {
+                    if (useCloud) {
+                        try {
+                            orders = await getMappedOrders();
+                            menu = await fetchMenu();
+                            renderKitchen();
+                            renderStats();
+                            renderMenu();
+                        } catch(e) { console.error('Lỗi khi tải lại:', e); }
+                    } else {
+                        menu = JSON.parse(localStorage.getItem('food_menu')) || DEFAULT_MENU;
+                        orders = JSON.parse(localStorage.getItem('food_orders')) || [];
+                        renderKitchen();
+                        renderStats();
+                        renderMenu();
+                    }
+                }
+            });
 
             renderMenu();
             updateBadge();

@@ -1,4 +1,4 @@
-const CACHE = 'sumo-quan-v2';
+const CACHE = 'sumo-quan-v3';
 const ASSETS = [
   '/',
   '/login.html',

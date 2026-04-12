@@ -59,6 +59,21 @@
             <div class="auth-link">
                 Chưa có tài khoản? <a href="register.html">Đăng ký quán mới</a>
             </div>
+            
+            <div class="divider">hoặc</div>
+            
+            <div id="resetSection">
+                <button onclick="showResetForm()" style="background:none;border:none;color:var(--gold);font-size:13px;cursor:pointer;font-weight:600">Quên mật khẩu?</button>
+            </div>
+            
+            <div id="resetForm" style="display:none;margin-top:20px">
+                <div class="form-group">
+                    <div class="form-label">Email đã đăng ký</div>
+                    <input type="email" class="form-input" id="resetEmail" placeholder="email@example.com">
+                </div>
+                <button type="button" class="auth-btn" id="resetBtn" onclick="handleResetPassword()" style="background:linear-gradient(135deg,#636e72 0%,#2d3436 100%);font-size:14px">Gửi email đặt lại mật khẩu</button>
+                <button type="button" onclick="hideResetForm()" style="background:none;border:none;color:rgba(255,255,255,0.5);font-size:12px;cursor:pointer;margin-top:10px">← Quay lại đăng nhập</button>
+            </div>
         </div>
     </div>
 
@@ -98,6 +113,49 @@
                 errEl.classList.add('show');
                 btn.disabled = false;
                 btn.textContent = 'Đăng Nhập';
+            }
+        }
+        
+        function showResetForm() {
+            document.getElementById('resetSection').style.display = 'none';
+            document.getElementById('resetForm').style.display = 'block';
+        }
+        
+        function hideResetForm() {
+            document.getElementById('resetSection').style.display = 'block';
+            document.getElementById('resetForm').style.display = 'none';
+        }
+        
+        async function handleResetPassword() {
+            const email = document.getElementById('resetEmail').value.trim();
+            const errEl = document.getElementById('authError');
+            const successEl = document.getElementById('authSuccess');
+            const btn = document.getElementById('resetBtn');
+            
+            if (!email) {
+                errEl.textContent = 'Vui lòng nhập email';
+                errEl.classList.add('show');
+                return;
+            }
+            
+            errEl.classList.remove('show');
+            successEl.classList.remove('show');
+            btn.disabled = true;
+            btn.textContent = 'Đang gửi...';
+            
+            try {
+                const { error } = await supabase.auth.resetPasswordForEmail(email, {
+                    redirectTo: window.location.origin + '/food.html'
+                });
+                if (error) throw error;
+                successEl.textContent = 'Đã gửi email đặt lại mật khẩu! Vui lòng kiểm tra hộp thư.';
+                successEl.classList.add('show');
+                btn.textContent = 'Đã gửi!';
+            } catch (err) {
+                errEl.textContent = err.message;
+                errEl.classList.add('show');
+                btn.disabled = false;
+                btn.textContent = 'Gửi email đặt lại mật khẩu';
             }
         }
     </script>

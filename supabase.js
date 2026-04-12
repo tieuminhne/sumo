@@ -66,15 +66,15 @@ async function getSession() {
 
 async function loadUserShop() {
     const sb = getSupabase();
-    const { data: members } = await sb.from('shop_members')
+    const { data: members, error } = await sb.from('shop_members')
         .select('shop_id, role, shops(id, name, phone, address, qr_image)')
         .eq('user_id', _currentUser.id)
         .limit(1)
-        .single();
-    if (members) {
-        _currentShopId = members.shop_id;
-        _currentRole = members.role;
-    }
+        .maybeSingle();
+    if (error) throw error;
+    if (!members) throw new Error('Tài khoản này chưa được gán vào quán nào. Hãy đăng nhập đúng tài khoản đã tạo quán.');
+    _currentShopId = members.shop_id;
+    _currentRole = members.role;
     return members;
 }
 

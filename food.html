@@ -1104,40 +1104,41 @@
                     }
                     _currentUser = session.user;
                     await loadUserShop();
-                    if (_currentShopId) {
-                        useCloud = true;
+                    useCloud = true;
+                    menu = await fetchMenu();
+                    if (!menu.length) {
+                        for (let i = 0; i < DEFAULT_MENU.length; i++) {
+                            await upsertMenuItem({ ...DEFAULT_MENU[i], sort_order: i });
+                        }
                         menu = await fetchMenu();
-                        if (!menu.length) {
-                            for (let i = 0; i < DEFAULT_MENU.length; i++) {
-                                await upsertMenuItem({ ...DEFAULT_MENU[i], sort_order: i });
-                            }
-                            menu = await fetchMenu();
-                        }
-                        orders = await fetchOrders();
-                        const shop = await fetchShop();
-                        if (shop) {
-                            document.getElementById('shopName').value = shop.name || '';
-                            document.getElementById('shopInfo').value = [shop.phone, shop.address].filter(Boolean).join(' - ');
-                            if (shop.qr_image) {
-                                const qrCode = document.querySelector('.qr-code');
-                                if (qrCode) qrCode.innerHTML = `<img src="${shop.qr_image}" alt="QR Code">`;
-                            }
-                        }
-                        subscribeOrders(async () => {
-                            orders = await fetchOrders();
-                            renderKitchen();
-                            renderStats();
-                        });
-                        subscribeOrderItems(async () => {
-                            orders = await fetchOrders();
-                            renderKitchen();
-                            renderStats();
-                        });
-                        document.getElementById('logoutBtn').style.display = 'block';
                     }
+                    orders = await fetchOrders();
+                    const shop = await fetchShop();
+                    if (shop) {
+                        document.getElementById('shopName').value = shop.name || '';
+                        document.getElementById('shopInfo').value = [shop.phone, shop.address].filter(Boolean).join(' - ');
+                        if (shop.qr_image) {
+                            const qrCode = document.querySelector('.qr-code');
+                            if (qrCode) qrCode.innerHTML = `<img src="${shop.qr_image}" alt="QR Code">`;
+                        }
+                    }
+                    subscribeOrders(async () => {
+                        orders = await fetchOrders();
+                        renderKitchen();
+                        renderStats();
+                    });
+                    subscribeOrderItems(async () => {
+                        orders = await fetchOrders();
+                        renderKitchen();
+                        renderStats();
+                    });
+                    document.getElementById('logoutBtn').style.display = 'block';
                 }
             } catch(e) {
-                console.log('Cloud init failed, using localStorage:', e.message);
+                alert('Không tải được dữ liệu quán: ' + e.message);
+                await signOut();
+                window.location.href = 'login.html';
+                return;
             }
 
             if (!useCloud) {

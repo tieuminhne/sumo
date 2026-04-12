@@ -567,15 +567,16 @@
                     }
                     _currentUser = session.user;
                     await loadUserShop();
-                    if (_currentShopId) {
-                        useCloud = true;
-                        await loadOrdersCloud();
-                        subscribeOrders(async () => { await loadOrdersCloud(); });
-                        subscribeOrderItems(async () => { await loadOrdersCloud(); });
-                    }
+                    useCloud = true;
+                    await loadOrdersCloud();
+                    subscribeOrders(async () => { await loadOrdersCloud(); });
+                    subscribeOrderItems(async () => { await loadOrdersCloud(); });
                 }
             } catch(e) {
-                console.log('Cloud init failed:', e.message);
+                alert('Không tải được dữ liệu quán: ' + e.message);
+                await signOut();
+                window.location.href = 'login.html';
+                return;
             }
             if (!useCloud) {
                 loadOrders();

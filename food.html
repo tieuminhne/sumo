@@ -361,6 +361,14 @@
                 <div class="modal-title" id="optionsTitle">Chọn tùy chọn</div>
                 <button class="modal-close" onclick="closeOptionsModal()">×</button>
             </div>
+            <div class="form-group">
+                <div class="form-label">Số lượng:</div>
+                <div style="display:flex;align-items:center;justify-content:center;gap:20px;padding:10px 0">
+                    <button onclick="changeModalQty(-1)" style="width:48px;height:48px;border:2px solid var(--gold);border-radius:12px;background:0;color:var(--gold);font-size:24px;font-weight:700;cursor:pointer">−</button>
+                    <span id="modalQty" style="font-size:32px;font-weight:800;color:var(--gold);min-width:60px;text-align:center">1</span>
+                    <button onclick="changeModalQty(1)" style="width:48px;height:48px;border:2px solid var(--gold);border-radius:12px;background:0;color:var(--gold);font-size:24px;font-weight:700;cursor:pointer">+</button>
+                </div>
+            </div>
             <div class="form-group" id="noteGroup">
                 <div class="form-label">Ghi chú:</div>
                 <input type="text" class="form-input" id="itemNoteInput" placeholder="VD: không hành, thêm đậu...">
@@ -409,6 +417,7 @@
         
         let editingId = null;
         let pendingItem = null;
+        let modalQty = 1;
         let kitchenTab = 'making';
         let dragMenuId = null;
         let menuRenderTimer = null;
@@ -464,23 +473,32 @@
         function showOptions(id) {
             const item = menu.find(m => String(m.id) === String(id));
             pendingItem = {...item};
+            modalQty = 1;
+            document.getElementById('modalQty').textContent = '1';
             document.getElementById('optionsTitle').innerHTML = `${item.emoji} ${item.name}<br><span style="font-size:14px;color:#e74c3c" id="optPriceDisplay">${fmt(item.price)}</span>`;
             document.getElementById('itemNoteInput').value = item.note || '';
             document.getElementById('optionsModal').classList.add('show');
+        }
+        
+        function changeModalQty(delta) {
+            modalQty += delta;
+            if (modalQty < 1) modalQty = 1;
+            if (modalQty > 99) modalQty = 99;
+            document.getElementById('modalQty').textContent = modalQty;
         }
         
         function confirmAddToCart() {
             const note = document.getElementById('itemNoteInput').value.trim();
             const exist = cart.find(c => c.id === pendingItem.id && c.note === note);
             if (exist) {
-                exist.qty++;
+                exist.qty += modalQty;
             } else {
-                cart.push({...pendingItem, qty: 1, note, price: pendingItem.price});
+                cart.push({...pendingItem, qty: modalQty, note, price: pendingItem.price});
             }
             saveCart();
             updateBadge();
             closeOptionsModal();
-            showToast(`Đã thêm ${pendingItem.name}`);
+            showToast(`Đã thêm ${modalQty} ${pendingItem.name}`);
         }
         
         function closeOptionsModal() {

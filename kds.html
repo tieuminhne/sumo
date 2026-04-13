@@ -250,6 +250,13 @@
             const pendingCount = orders.filter(o => o.kdsStatus !== 'done').length;
             if (pendingCount > lastOrderCount && lastOrderCount > 0) {
                 playSound();
+                const newOrders = orders.filter(o => o.kdsStatus === 'new');
+                if (newOrders.length > 0) {
+                    const o = newOrders[0];
+                    speak(`Có đơn mới. Bàn ${o.table}. ${o.items.map(x => `${x.q} ${x.n}`).join('. ')}`);
+                } else {
+                    speak('Có đơn mới');
+                }
             }
             lastOrderCount = pendingCount;
             
@@ -556,7 +563,16 @@
                     return 0;
                 });
                 const pendingCount = orders.filter(o => o.kdsStatus !== 'done').length;
-                if (pendingCount > lastOrderCount && lastOrderCount > 0) playSound();
+                if (pendingCount > lastOrderCount && lastOrderCount > 0) {
+                    playSound();
+                    const newOrders = orders.filter(o => o.kdsStatus === 'new');
+                    if (newOrders.length > 0) {
+                        const o = newOrders[0];
+                        speak(`Có đơn mới. Bàn ${o.table}. ${o.items.map(x => `${x.q} ${x.n}`).join('. ')}`);
+                    } else {
+                        speak('Có đơn mới');
+                    }
+                }
                 lastOrderCount = pendingCount;
                 renderOrders();
                 updateStats();

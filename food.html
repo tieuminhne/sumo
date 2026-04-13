@@ -903,10 +903,18 @@
         }
         
         function speakOrder(text) {
-            const audio = new Audio();
-            audio.src = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(text)}&tl=vi&client=tw-ob`;
-            audio.volume = 1;
-            audio.play().catch(() => {});
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.cancel();
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = 'vi-VN';
+                utterance.rate = 1.0;
+                window.speechSynthesis.speak(utterance);
+            } else {
+                const audio = new Audio();
+                audio.src = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(text)}&tl=vi&client=tw-ob`;
+                audio.volume = 1;
+                audio.play().catch(() => {});
+            }
         }
         
         function openAddModal() {

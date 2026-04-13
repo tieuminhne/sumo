@@ -640,17 +640,19 @@
         }
         
         async function toggleStatus(i) {
+            const nextStatus = orders[i].status ? 0 : 1;
             if (useCloud) {
                 try {
                     const o = orders[i];
-                    await updateOrderStatus(o.id, o.status ? 0 : 1);
+                    await updateOrderStatus(o.id, nextStatus);
                     orders = await getMappedOrders();
                 } catch(e) { showToast('Lỗi: ' + e.message, true); }
             } else {
-                orders[i].status = orders[i].status ? 0 : 1;
+                orders[i].status = nextStatus;
                 orders[i].updatedAt = Date.now();
                 localStorage.setItem('food_orders', JSON.stringify(orders));
             }
+            if (nextStatus === 1) kitchenTab = 'payment';
             renderOrders();
             renderKitchen();
             renderStats();
@@ -807,9 +809,9 @@
         
         function renderKitchen() {
             const making = orders.filter(o => o.status === 0);
-            const done = orders.filter(o => o.status === 1 && (Date.now() - (o.updatedAt || 0) < 5 * 60 * 1000));
             const unpaid = orders.filter(o => o.status === 1 && !o.paid);
             const paid = orders.filter(o => o.status === 1 && o.paid);
+            const done = paid.filter(o => Date.now() - (o.updatedAt || 0) < 5 * 60 * 1000);
             
             document.getElementById('kitchenBadge').textContent = making.length;
             document.getElementById('kitchenMakingCount').textContent = making.length;

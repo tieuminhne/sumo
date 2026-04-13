@@ -2,7 +2,7 @@
   "name": "SUMO QUÁN - Order Management",
   "short_name": "SUMO QUÁN",
   "description": "App quản lý đặt món cho quán ăn",
-  "start_url": "/login.html",
+  "start_url": "./login.html",
   "display": "standalone",
   "background_color": "#1a1a2e",
   "theme_color": "#c41e3a",

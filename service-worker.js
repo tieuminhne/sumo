@@ -1,12 +1,12 @@
 const CACHE = 'sumo-quan-v3';
 const ASSETS = [
-  '/',
-  '/login.html',
-  '/register.html',
-  '/food.html',
-  '/kds.html',
-  '/manifest.json',
-  '/supabase.js'
+  './',
+  './login.html',
+  './register.html',
+  './food.html',
+  './kds.html',
+  './manifest.json',
+  './supabase.js'
 ];
 
 self.addEventListener('install', e => {
@@ -31,6 +31,6 @@ self.addEventListener('fetch', e => {
         caches.open(CACHE).then(x => x.put(e.request, c));
       }
       return res;
-    }).catch(() => caches.match('/index.html')))
+    }).catch(() => caches.match('./login.html')))
   );
 });

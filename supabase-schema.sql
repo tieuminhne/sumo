@@ -73,11 +73,19 @@ alter table menu_items enable row level security;
 alter table orders enable row level security;
 alter table order_items enable row level security;
 
--- Helper function
-create or replace function user_shop_ids()
+-- Helper functions that MUST bypass RLS to prevent infinite recursion
+create or replace function get_user_shop_ids()
 returns setof uuid as $$
     select shop_id from shop_members where user_id = auth.uid()
-$$ language sql security definer stable;
+$$ language sql security definer stable set search_path = public;
+
+create or replace function is_shop_owner(check_shop_id uuid)
+returns boolean as $$
+    select exists (
+        select 1 from shop_members
+        where shop_id = check_shop_id and user_id = auth.uid() and role = 'owner'
+    )
+$$ language sql security definer stable set search_path = public;
 
 -- Drop old policies safely
 DROP POLICY IF EXISTS "Users see own shops" ON shops;
@@ -107,66 +115,38 @@ DROP POLICY IF EXISTS "Staff manage order items" ON order_items;
 
 -- Shops policies
 create policy "Users see own shops" on shops
-    for select using (id in (select user_shop_ids()));
+    for select using (id in (select get_user_shop_ids()));
 
 create policy "Authenticated users can create shop" on shops
     for insert with check (auth.uid() is not null);
 
 create policy "Owner can update shop" on shops
-    for update using (
-        id in (
-            select shop_id from shop_members where user_id = auth.uid() and role = 'owner'
-        )
-    )
-    with check (
-        id in (
-            select shop_id from shop_members where user_id = auth.uid() and role = 'owner'
-        )
-    );
+    for update using (is_shop_owner(id))
+    with check (is_shop_owner(id));
 
 -- Shop member policies
 create policy "See members of own shop" on shop_members
-    for select using (shop_id in (select user_shop_ids()));
+    for select using (shop_id in (select get_user_shop_ids()));
 
 create policy "User can create own owner membership" on shop_members
     for insert with check (user_id = auth.uid() and role = 'owner');
 
 create policy "Owner can insert members" on shop_members
-    for insert with check (
-        shop_id in (
-            select shop_id from shop_members where user_id = auth.uid() and role = 'owner'
-        )
-    );
+    for insert with check (is_shop_owner(shop_id));
 
 create policy "Owner can update members" on shop_members
-    for update using (
-        shop_id in (
-            select shop_id from shop_members where user_id = auth.uid() and role = 'owner'
-        )
-    )
-    with check (
-        shop_id in (
-            select shop_id from shop_members where user_id = auth.uid() and role = 'owner'
-        )
-    );
+    for update using (is_shop_owner(shop_id))
+    with check (is_shop_owner(shop_id));
 
 create policy "Owner can delete members" on shop_members
-    for delete using (
-        shop_id in (
-            select shop_id from shop_members where user_id = auth.uid() and role = 'owner'
-        )
-    );
+    for delete using (is_shop_owner(shop_id));
 
 -- Menu policies
 create policy "See menu of own shop" on menu_items
-    for select using (shop_id in (select user_shop_ids()));
+    for select using (shop_id in (select get_user_shop_ids()));
 
 create policy "Owner/staff insert menu" on menu_items
-    for insert with check (
-        shop_id in (
-            select shop_id from shop_members where user_id = auth.uid() and role in ('owner', 'staff')
-        )
-    );
+    for insert with check (shop_id in (select get_user_shop_ids()));
 
 create policy "Owner/staff update menu" on menu_items
     for update using (

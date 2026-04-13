@@ -27,18 +27,31 @@ async function signUp(email, password, shopName) {
     const sb = getSupabase();
     const { data, error } = await sb.auth.signUp({ email, password });
     if (error) throw error;
-    const user = data.user;
+    
+    // Nếu bạn signUp bằng email đã tồn tại, đôi khi Supabase sẽ không trả lỗi ngay mà sẽ chặn không trả về session (bảo mật email enumeration).
+    if (!data.session && !data.user) {
+        throw new Error('Đăng ký thất bại. Email có thể đã tồn tại.');
+    }
 
-    const { data: shop, error: shopErr } = await sb.from('shops').insert({ name: shopName || 'Quán mới' }).select().single();
-    if (shopErr) throw shopErr;
+    // Explicitly try to sign in in case signUp didn't automatically establish session
+    if (!data.session) {
+        const signData = await sb.auth.signInWithPassword({ email, password });
+        if (signData.error) throw new Error('Không thể tự động đăng nhập sau khi tạo tài khoản. Vui lòng thử đăng nhập thủ công.');
+        data.user = signData.data.user;
+    }
 
-    const { error: memberErr } = await sb.from('shop_members').insert({ shop_id: shop.id, user_id: user.id, role: 'owner' });
-    if (memberErr) throw memberErr;
+    // Dùng randomUUID để tự tạo ID cho quán, tránh lỗi RLS khi gọi .select() vì chưa có dữ liệu trong shop_members.
+    const newShopId = crypto.randomUUID();
+    const { error: shopErr } = await sb.from('shops').insert({ id: newShopId, name: shopName || 'Quán mới' });
+    if (shopErr) throw new Error('Lỗi tạo quán: ' + shopErr.message);
 
-    _currentUser = user;
-    _currentShopId = shop.id;
+    const { error: memberErr } = await sb.from('shop_members').insert({ shop_id: newShopId, user_id: data.user.id, role: 'owner' });
+    if (memberErr) throw new Error('Lỗi cấp quyền chủ: ' + memberErr.message);
+
+    _currentUser = data.user;
+    _currentShopId = newShopId;
     _currentRole = 'owner';
-    return { user, shop };
+    return { user: data.user, shop: { id: newShopId, name: shopName || 'Quán mới' } };
 }
 
 async function signIn(email, password) {
@@ -46,7 +59,12 @@ async function signIn(email, password) {
     const { data, error } = await sb.auth.signInWithPassword({ email, password });
     if (error) throw error;
     _currentUser = data.user;
-    await loadUserShop();
+    try {
+        await loadUserShop();
+    } catch (err) {
+        await signOut();
+        throw err;
+    }
     return data;
 }
 

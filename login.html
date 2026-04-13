@@ -84,8 +84,15 @@
             const session = await getSession();
             if (session) {
                 _currentUser = session.user;
-                await loadUserShop();
-                window.location.href = 'food.html';
+                try {
+                    await loadUserShop();
+                    window.location.href = 'food.html';
+                } catch (err) {
+                    await signOut();
+                    const errEl = document.getElementById('authError');
+                    errEl.textContent = err.message;
+                    errEl.classList.add('show');
+                }
             }
         })();
 

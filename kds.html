@@ -455,6 +455,14 @@
                 const utterance = new SpeechSynthesisUtterance(text);
                 utterance.lang = 'vi-VN';
                 utterance.rate = speechRate;
+                
+                const voices = window.speechSynthesis.getVoices();
+                const viVoices = voices.filter(v => v.lang.includes('vi'));
+                if (viVoices.length > 0) {
+                    const prefs = ['hoaimy', 'linh', 'female', 'nữ', 'google'];
+                    utterance.voice = viVoices.find(v => prefs.some(p => v.name.toLowerCase().includes(p))) || viVoices[0];
+                }
+                
                 window.speechSynthesis.speak(utterance);
             } else {
                 const chunks = [];

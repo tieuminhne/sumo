@@ -169,40 +169,40 @@ create policy "Owner/staff delete menu" on menu_items
 
 -- Orders policies
 create policy "See orders of own shop" on orders
-    for select using (shop_id in (select user_shop_ids()));
+    for select using (shop_id in (select get_user_shop_ids()));
 
 create policy "Staff insert orders" on orders
-    for insert with check (shop_id in (select user_shop_ids()));
+    for insert with check (shop_id in (select get_user_shop_ids()));
 
 create policy "Staff update orders" on orders
-    for update using (shop_id in (select user_shop_ids()))
-    with check (shop_id in (select user_shop_ids()));
+    for update using (shop_id in (select get_user_shop_ids()))
+    with check (shop_id in (select get_user_shop_ids()));
 
 create policy "Staff delete orders" on orders
-    for delete using (shop_id in (select user_shop_ids()));
+    for delete using (shop_id in (select get_user_shop_ids()));
 
 -- Order items policies
 create policy "See order items of own shop" on order_items
     for select using (
-        order_id in (select id from orders where shop_id in (select user_shop_ids()))
+        order_id in (select id from orders where shop_id in (select get_user_shop_ids()))
     );
 
 create policy "Staff insert order items" on order_items
     for insert with check (
-        order_id in (select id from orders where shop_id in (select user_shop_ids()))
+        order_id in (select id from orders where shop_id in (select get_user_shop_ids()))
     );
 
 create policy "Staff update order items" on order_items
     for update using (
-        order_id in (select id from orders where shop_id in (select user_shop_ids()))
+        order_id in (select id from orders where shop_id in (select get_user_shop_ids()))
     )
     with check (
-        order_id in (select id from orders where shop_id in (select user_shop_ids()))
+        order_id in (select id from orders where shop_id in (select get_user_shop_ids()))
     );
 
 create policy "Staff delete order items" on order_items
     for delete using (
-        order_id in (select id from orders where shop_id in (select user_shop_ids()))
+        order_id in (select id from orders where shop_id in (select get_user_shop_ids()))
     );
 
 -- Realtime

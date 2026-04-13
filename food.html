@@ -415,13 +415,13 @@
         let dragMenuId = null;
         
         const DEFAULT_MENU = [
-            {id:1,name:'Bún Riêu',price:35000,emoji:'🍜',note:'', highlight:false},
-            {id:2,name:'Bún Riêu Ốc',price:40000,emoji:'🐚',note:'', highlight:false},
-            {id:3,name:'Bún Riêu Giò',price:40000,emoji:'🍖',note:'', highlight:false},
-            {id:4,name:'Bún Riêu Xương',price:40000,emoji:'🦴',note:'', highlight:false},
-            {id:5,name:'Bún Riêu Mộc',price:40000,emoji:'🍄',note:'', highlight:false},
-            {id:6,name:'Bún Riêu Xí Quách',price:45000,emoji:'🥩',note:'', highlight:false},
-            {id:7,name:'Bún Riêu Đặc Biệt',price:55000,emoji:'🌟',note:'Xương Ốc + Giò Ốc', highlight:true}
+            {name:'Bún Riêu',price:35000,emoji:'🍜',note:'', highlight:false},
+            {name:'Bún Riêu Ốc',price:40000,emoji:'🐚',note:'', highlight:false},
+            {name:'Bún Riêu Giò',price:40000,emoji:'🍖',note:'', highlight:false},
+            {name:'Bún Riêu Xương',price:40000,emoji:'🦴',note:'', highlight:false},
+            {name:'Bún Riêu Mộc',price:40000,emoji:'🍄',note:'', highlight:false},
+            {name:'Bún Riêu Xí Quách',price:45000,emoji:'🥩',note:'', highlight:false},
+            {name:'Bún Riêu Đặc Biệt',price:55000,emoji:'🌟',note:'Xương Ốc + Giò Ốc', highlight:true}
         ];
         
         function fmt(n) {return Number(n || 0).toLocaleString('vi') + 'đ'}
@@ -436,7 +436,7 @@
                     <div class="name">${m.name}</div>
                     ${m.note ? `<div class="note">${m.note}</div>` : ''}
                     <div class="price">${fmt(m.price)}</div>
-                    <button class="add-btn" onclick="showOptions(${m.id})">+ Thêm</button>
+                    <button class="add-btn" onclick="showOptions('${m.id}')">+ Thêm</button>
                 </div>
             `).join('') : `<div style="grid-column:1/-1;text-align:center;padding:60px 20px;color:rgba(255,255,255,0.4)">Không tìm thấy món phù hợp</div>`;
         }
@@ -450,14 +450,14 @@
                         <div class="name">${m.name}</div>
                         <div class="price">${fmt(m.price)}</div>
                     </div>
-                    <button class="edit-btn" onclick="openEditModal(${m.id})">✏️</button>
-                    <button class="delete-item-btn" onclick="deleteItemFn(${m.id})">🗑️</button>
+                    <button class="edit-btn" onclick="openEditModal('${m.id}')">✏️</button>
+                    <button class="delete-item-btn" onclick="deleteItemFn('${m.id}')">🗑️</button>
                 </div>
             `).join('');
         }
         
         function showOptions(id) {
-            const item = menu.find(m => m.id === id);
+            const item = menu.find(m => String(m.id) === String(id));
             pendingItem = {...item};
             document.getElementById('optionsTitle').innerHTML = `${item.emoji} ${item.name}<br><span style="font-size:14px;color:#e74c3c" id="optPriceDisplay">${fmt(item.price)}</span>`;
             document.getElementById('itemNoteInput').value = item.note || '';
@@ -920,7 +920,7 @@
         }
         
         function openEditModal(id) {
-            const item = menu.find(m => m.id === id);
+            const item = menu.find(m => String(m.id) === String(id));
             editingId = id;
             document.getElementById('modalTitle').textContent = '✏️ Sửa Món';
             document.getElementById('itemEmoji').value = item.emoji;
@@ -953,7 +953,7 @@
             } else {
                 const item = {id: editingId || Date.now(), emoji, name, price, note};
                 if (editingId) {
-                    const idx = menu.findIndex(m => m.id === editingId);
+                    const idx = menu.findIndex(m => String(m.id) === String(editingId));
                     menu[idx] = item;
                 } else {
                     menu.push(item);
@@ -974,7 +974,7 @@
                     menu = await fetchMenu();
                 } catch(e) { showToast('Lỗi: ' + e.message, true); return; }
             } else {
-                menu = menu.filter(m => m.id !== id);
+                menu = menu.filter(m => String(m.id) !== String(id));
                 localStorage.setItem('food_menu', JSON.stringify(menu));
             }
             renderMenu();

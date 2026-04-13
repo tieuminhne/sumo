@@ -443,28 +443,36 @@
         function speak(text) {
             if (!soundUnlocked) { showToast('Bấm "Bật thông báo" trước!'); return; }
             if (currentAudio) { currentAudio.pause(); currentAudio = null; }
-            const chunks = [];
-            const maxLen = 180;
-            let remaining = text;
-            while (remaining.length > 0) {
-                if (remaining.length <= maxLen) { chunks.push(remaining); break; }
-                let cut = remaining.lastIndexOf('.', maxLen);
-                if (cut < 20) cut = remaining.lastIndexOf(' ', maxLen);
-                if (cut < 20) cut = maxLen;
-                chunks.push(remaining.substring(0, cut + 1));
-                remaining = remaining.substring(cut + 1).trim();
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.cancel();
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = 'vi-VN';
+                utterance.rate = speechRate;
+                window.speechSynthesis.speak(utterance);
+            } else {
+                const chunks = [];
+                const maxLen = 180;
+                let remaining = text;
+                while (remaining.length > 0) {
+                    if (remaining.length <= maxLen) { chunks.push(remaining); break; }
+                    let cut = remaining.lastIndexOf('.', maxLen);
+                    if (cut < 20) cut = remaining.lastIndexOf(' ', maxLen);
+                    if (cut < 20) cut = maxLen;
+                    chunks.push(remaining.substring(0, cut + 1));
+                    remaining = remaining.substring(cut + 1).trim();
+                }
+                let i = 0;
+                function playNext() {
+                    if (i >= chunks.length) { currentAudio = null; return; }
+                    const audio = new Audio();
+                    currentAudio = audio;
+                    audio.src = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(chunks[i])}&tl=vi&client=tw-ob`;
+                    audio.playbackRate = speechRate;
+                    audio.onended = () => { i++; playNext(); };
+                    audio.play().catch(() => {});
+                }
+                playNext();
             }
-            let i = 0;
-            function playNext() {
-                if (i >= chunks.length) { currentAudio = null; return; }
-                const audio = new Audio();
-                currentAudio = audio;
-                audio.src = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(chunks[i])}&tl=vi&client=tw-ob`;
-                audio.playbackRate = speechRate;
-                audio.onended = () => { i++; playNext(); };
-                audio.play().catch(() => {});
-            }
-            playNext();
         }
         
         function speakOrder(index) {

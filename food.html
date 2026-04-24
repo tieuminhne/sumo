@@ -152,6 +152,13 @@
         .qr-code img{width:160px;height:160px;border-radius:12px}
         .qr-title{color:var(--gold);font-size:16px;font-weight:800;margin-bottom:8px}
         .qr-subtitle{color:rgba(255,255,255,0.6);font-size:13px}
+        .bt-section{background:linear-gradient(145deg,rgba(33,150,243,0.1) 0%,rgba(33,150,243,0.02) 100%);border:2px solid #2196f3;border-radius:24px;padding:20px;margin:16px;text-align:center}
+        .bt-status{display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:14px}
+        .bt-status-dot{width:12px;height:12px;border-radius:50%;background:#f44336}
+        .bt-status-dot.connected{background:#4caf50;box-shadow:0 0 10px #4caf50}
+        .bt-device{font-size:13px;color:#fff;margin-bottom:12px;font-weight:600}
+        .bt-btn{padding:14px 24px;background:linear-gradient(135deg,#2196f3 0%,#1976d2 100%);color:#fff;border:none;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;box-shadow:0 6px 20px rgba(33,150,243,0.3)}
+        .print-icon{width:40px;height:40px;background:linear-gradient(135deg,#4caf50 0%,#388e3c 100%);border:none;border-radius:10px;color:#fff;font-size:20px;cursor:pointer;box-shadow:0 4px 15px rgba(76,175,80,0.3);display:flex;align-items:center;justify-content:center}
     </style>
 </head>
 <body>
@@ -322,6 +329,18 @@
                         <input type="text" class="form-input" id="shopInfo" placeholder="123 Đường ABC, TP.HCM" onchange="saveShopInfo()">
                     </div>
                 </div>
+            </div>
+        </div>
+        
+        <div class="setting-section">
+            <div class="setting-title">🖨️ In Bill Bếp</div>
+            <div class="bt-section" id="btSection">
+                <div class="bt-status">
+                    <div class="bt-status-dot" id="btStatusDot"></div>
+                    <span id="btStatusText" style="font-size:12px;color:rgba(255,255,255,0.6)">Chưa kết nối</span>
+                </div>
+                <div class="bt-device" id="btDeviceName"></div>
+                <button class="bt-btn" id="btConnectBtn" onclick="connectBluetooth()">🔗 Kết Nối Máy In</button>
             </div>
         </div>
     </main>
@@ -872,6 +891,7 @@
                                     <div style="font-weight:800;font-size:20px;color:var(--gold)">📌 Bàn ${o.table}</div>
                                 </div>
                                 <button onclick="speakOrder('${fullText.replace(/'/g, "\\'")}')" style="background:linear-gradient(135deg,#9c27b0 0%,#7b1fa2 100%);color:#fff;border:none;padding:12px 16px;border-radius:10px;font-size:18px;cursor:pointer;box-shadow:0 6px 20px rgba(156,39,176,0.3)">🔊</button>
+                            <button onclick="printKitchenBill(orders[${realIdx}])" class="print-icon">🖨️</button>
                             </div>
                             <div style="color:rgba(255,255,255,0.4);font-size:12px;margin-bottom:12px;margin-top:8px">${o.time}</div>
                             ${o.items.map(x => `<div style="margin:10px 0;padding:10px 0;border-bottom:1px dashed rgba(255,255,255,0.1)"><span style="font-weight:900;font-size:28px;color:#ff6b35">${x.q}×</span> <span style="font-weight:900;font-size:26px;color:#fff">${x.n}</span>${x.note ? `<div style="color:#856404;font-size:16px;font-weight:600;margin-top:6px;background:rgba(255,243,205,0.15);padding:8px 12px;border-radius:8px">📝 ${x.note}</div>` : ''}</div>`).join('')}
@@ -1287,7 +1307,115 @@
             qrDisplay.style.display = 'none';
         });
         
+        let btDevice = null;
+        let btCharacteristic = null;
+        
+        async function connectBluetooth() {
+            try {
+                showToast('Đang tìm máy in...');
+                const device = await navigator.bluetooth.requestDevice({
+                    filters: [{ services: ['00001800-0000-1000-8000-00805f9b34fb', '00001801-0000-1000-8000-00805f9b34fb', '0000180a-0000-1000-8000-00805f9b34fb'] }],
+                    optionalServices: ['generic_access', 'generic_hid', 'device_information']
+                });
+                
+                const server = await device.gatt.connect();
+                btDevice = device;
+                
+                localStorage.setItem('bt_device_name', device.name);
+                localStorage.setItem('bt_device_id', device.id);
+                
+                document.getElementById('btStatusDot').classList.add('connected');
+                document.getElementById('btStatusText').textContent = 'Đã kết nối';
+                document.getElementById('btDeviceName').textContent = device.name || 'Máy in Bluetooth';
+                document.getElementById('btConnectBtn').textContent = '🔄 Kết Nối Lại';
+                
+                showToast('Đã kết nối máy in: ' + (device.name || 'Bluetooth'));
+                
+                device.addEventListener('gattserverdisconnected', () => {
+                    btDevice = null;
+                    document.getElementById('btStatusDot').classList.remove('connected');
+                    document.getElementById('btStatusText').textContent = 'Mất kết nối';
+                    document.getElementById('btConnectBtn').textContent = '🔗 Kết Nối Lại';
+                });
+            } catch(e) {
+                if (e.name !== 'NotFoundError' && e.name !== 'SecurityError') {
+                    showToast('Lỗi Bluetooth: ' + e.message, true);
+                }
+            }
+        }
+        
+        function initBluetooth() {
+            const savedName = localStorage.getItem('bt_device_name');
+            if (savedName) {
+                document.getElementById('btDeviceName').textContent = savedName;
+                document.getElementById('btStatusText').textContent = 'Đã lưu (nhấn để kết nối)';
+            }
+        }
+        
+        async function printKitchenBill(order) {
+            if (!btDevice || !btDevice.gatt.connected) {
+                try {
+                    const devices = await navigator.bluetooth.getDevices();
+                    const savedId = localStorage.getItem('bt_device_id');
+                    if (savedId) {
+                        const device = await navigator.bluetooth.selectDevice({ filters: [] });
+                        if (device.id === savedId) {
+                            const server = await device.gatt.connect();
+                            btDevice = device;
+                        }
+                    }
+                } catch(e) {
+                    showToast('Chưa kết nối máy in!', true);
+                    return;
+                }
+            }
+            
+            if (!btDevice || !btDevice.gatt.connected) {
+                showToast('Chưa kết nối máy in!', true);
+                return;
+            }
+            
+            try {
+                const service = await btDevice.gatt.getPrimaryService('00001801-0000-1000-8000-00805f9b34fb');
+                const char = await service.getCharacteristic('00002a05-0000-1000-8000-00805f9b34fb');
+                
+                const shopName = document.getElementById('shopName').value || 'SUMO QUÁN';
+                const lines = [];
+                lines.push('================================');
+                lines.push(shopName);
+                lines.push('--------------------------------');
+                lines.push(`BÀN: ${order.table}`);
+                lines.push(`Giờ: ${order.time}`);
+                lines.push('--------------------------------');
+                
+                order.items.forEach(item => {
+                    const qty = item.q.toString().padStart(3);
+                    const name = item.n;
+                    lines.push(`${qty}x ${name}`);
+                    if (item.note) {
+                        lines.push(`   * ${item.note}`);
+                    }
+                });
+                
+                lines.push('--------------------------------');
+                lines.push(`TỔNG: ${fmt(order.total)}`);
+                lines.push('================================');
+                lines.push('');
+                lines.push('');
+                
+                const text = lines.join('\r\n') + '\f';
+                const encoder = new TextEncoder();
+                const data = encoder.encode(text);
+                
+                await char.writeValue(data);
+                showToast('Đã in bill!');
+            } catch(e) {
+                showToast('Lỗi in: ' + e.message, true);
+            }
+        }
+        
         setTimeout(loadQR, 500);
+        setTimeout(initBluetooth, 500);
     </script>
 </body>
 </html>

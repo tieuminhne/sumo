@@ -1342,24 +1342,22 @@
                 btDevice = device;
                 
                 localStorage.setItem('bt_device_name', device.name);
-                localStorage.setItem('bt_device_id', device.id);
                 
                 document.getElementById('btStatusDot').classList.add('connected');
                 document.getElementById('btStatusText').textContent = 'Đã kết nối';
                 document.getElementById('btDeviceName').textContent = device.name || 'Máy in Bluetooth';
                 document.getElementById('btConnectBtn').textContent = '🔄 Kết Nối Lại';
                 
-                showToast('Đã kết nối máy in: ' + (device.name || 'Bluetooth'));
+                showToast('Đã kết nối: ' + (device.name || 'Bluetooth'));
                 
                 device.addEventListener('gattserverdisconnected', () => {
                     btDevice = null;
                     document.getElementById('btStatusDot').classList.remove('connected');
                     document.getElementById('btStatusText').textContent = 'Mất kết nối';
-                    document.getElementById('btConnectBtn').textContent = '🔗 Kết Nối Lại';
                 });
             } catch(e) {
                 if (e.name !== 'NotFoundError' && e.name !== 'SecurityError') {
-                    showToast('Lỗi Bluetooth: ' + e.message, true);
+                    showToast('Lỗi: ' + e.message, true);
                 }
             }
         }

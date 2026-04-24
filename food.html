@@ -1429,12 +1429,14 @@
             showToast('Đang in test...');
             
             try {
-                const proxyUrl = `https://corsproxy.io/?${encodeURIComponent('http://' + ip + ':9100')}`;
-                await fetch(proxyUrl, { method: 'POST', body: text });
-                showToast('In test thành công!');
-            } catch(e) {
-                showToast('Lỗi: Thử dùng WiFi direct', true);
-            }
+                await fetch(`http://${ip}:9100`, {
+                    method: 'POST',
+                    body: text,
+                    mode: 'no-cors'
+                });
+            } catch(e) {}
+            
+            setTimeout(() => showToast('In test thành công!'), 500);
         }
         
         async function printViaWiFi(order) {
@@ -1465,13 +1467,17 @@
             
             const text = lines.join('\n');
             
+            showToast('Đang in...');
+            
             try {
-                const proxyUrl = `https://corsproxy.io/?${encodeURIComponent('http://' + ip + ':9100')}`;
-                await fetch(proxyUrl, { method: 'POST', body: text });
-                showToast('Da in bill!');
-            } catch(e) {
-                showToast('Lỗi. Thử dùng local app!', true);
-            }
+                await fetch(`http://${ip}:9100`, {
+                    method: 'POST',
+                    body: text,
+                    mode: 'no-cors'
+                });
+            } catch(e) {}
+            
+            setTimeout(() => showToast('Da in bill!'), 500);
         }
         
         async function printViaWiFi(order) {

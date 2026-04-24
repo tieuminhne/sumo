@@ -1379,6 +1379,7 @@
             }
             
             try {
+                const services = await btDevice.gatt.getPrimaryServices();
                 console.log('Services:', services);
                 let char = null;
                 

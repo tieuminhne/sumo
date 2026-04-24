@@ -158,6 +158,7 @@
         .bt-status-dot.connected{background:#4caf50;box-shadow:0 0 10px #4caf50}
         .bt-device{font-size:13px;color:#fff;margin-bottom:12px;font-weight:600}
         .bt-btn{padding:14px 24px;background:linear-gradient(135deg,#2196f3 0%,#1976d2 100%);color:#fff;border:none;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;box-shadow:0 6px 20px rgba(33,150,243,0.3)}
+        .bt-btn-usb{padding:14px 24px;background:linear-gradient(135deg,#4caf50 0%,#388e3c 100%);color:#fff;border:none;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;box-shadow:0 6px 20px rgba(76,175,80,0.3);margin-top:10px}
         .print-icon{width:40px;height:40px;background:linear-gradient(135deg,#4caf50 0%,#388e3c 100%);border:none;border-radius:10px;color:#fff;font-size:20px;cursor:pointer;box-shadow:0 4px 15px rgba(76,175,80,0.3);display:flex;align-items:center;justify-content:center}
     </style>
 </head>
@@ -334,14 +335,16 @@
         
         <div class="setting-section">
             <div class="setting-title">🖨️ In Bill Bếp</div>
-            <div class="bt-section" id="btSection">
-                <div class="bt-status">
-                    <div class="bt-status-dot" id="btStatusDot"></div>
-                    <span id="btStatusText" style="font-size:12px;color:rgba(255,255,255,0.6)">Chưa kết nối</span>
-                </div>
-                <div class="bt-device" id="btDeviceName"></div>
-                <button class="bt-btn" id="btConnectBtn" onclick="connectBluetooth()">🔗 Kết Nối Máy In</button>
-            </div>
+<div class="bt-section" id="btSection">
+                        <div style="font-size:12px;color:#f44336;margin-bottom:10px">⚠️ Bluetooth SPP không hỗ trợ web</div>
+                        <div class="bt-status">
+                            <div class="bt-status-dot" id="btStatusDot"></div>
+                            <span id="btStatusText" style="font-size:12px;color:rgba(255,255,255,0.6)">Chưa kết nối</span>
+                        </div>
+                        <div class="bt-device" id="btDeviceName"></div>
+                        <button class="bt-btn" id="btConnectBtn" onclick="connectBluetooth()">🔗 Kết Nối Bluetooth</button>
+                        <button class="bt-btn-usb" id="usbConnectBtn" onclick="connectUSB()">🔌 Kết Nối USB</button>
+                    </div>
         </div>
     </main>
     
@@ -1309,9 +1312,14 @@
         
         let btDevice = null;
         let btCharacteristic = null;
+        let usbPort = null;
         
         function isBluetoothSupported() {
             return 'bluetooth' in navigator;
+        }
+        
+        function isUSBSupported() {
+            return 'serial' in navigator;
         }
         
         function initBluetooth() {
@@ -1319,10 +1327,78 @@
                 document.getElementById('btSection').innerHTML = '<div style="color:#f44336;font-size:13px;padding:20px">❌ Trình duyệt không hỗ trợ Bluetooth.<br><br>Dùng <b>Chrome</b> hoặc <b>Edge</b> trên máy tính hoặc Android.<br>Yêu cầu HTTPS hoặc localhost.</div>';
                 return;
             }
+            if (!isUSBSupported()) {
+                document.getElementById('usbConnectBtn').style.display = 'none';
+            }
             const savedName = localStorage.getItem('bt_device_name');
             if (savedName) {
                 document.getElementById('btDeviceName').textContent = savedName;
                 document.getElementById('btStatusText').textContent = 'Đã lưu (nhấn để kết nối)';
+            }
+        }
+        
+        async function connectUSB() {
+            if (!isUSBSupported()) {
+                showToast('Trình duyệt không hỗ trợ Web Serial!', true);
+                return;
+            }
+            try {
+                showToast('Đang tìm cổng USB...');
+                const port = await navigator.serial.requestPort();
+                await port.open({ baudRate: 9600 });
+                usbPort = port;
+                
+                document.getElementById('btStatusDot').classList.add('connected');
+                document.getElementById('btStatusText').textContent = 'USB Đã kết nối';
+                document.getElementById('btDeviceName').textContent = port.getInfo().usbVendorId ? 'Máy in USB' : 'USB Device';
+                document.getElementById('usbConnectBtn').textContent = '🔄 Ngắt USB';
+                
+                showToast('Đã kết nối USB!');
+            } catch(e) {
+                if (e.name !== 'NotFoundError') {
+                    showToast('Lỗi USB: ' + e.message, true);
+                }
+            }
+        }
+        
+        async function printViaUSB(order) {
+            if (!usbPort || !usbPort.writable) {
+                showToast('Chưa kết nối USB!', true);
+                return;
+            }
+            
+            try {
+                const writer = usbPort.writable.getWriter();
+                
+                const shopName = document.getElementById('shopName').value || 'SUMO QUAN';
+                const lines = [];
+                lines.push('================================');
+                lines.push(shopName);
+                lines.push('--------------------------------');
+                lines.push(`BAN: ${order.table}`);
+                lines.push(`Gio: ${order.time}`);
+                lines.push('--------------------------------');
+                
+                order.items.forEach(item => {
+                    lines.push(`${item.q}x ${item.n}`);
+                    if (item.note) lines.push(`   note: ${item.note}`);
+                });
+
+                lines.push('--------------------------------');
+                lines.push(`TONG: ${fmt(order.total)}`);
+                lines.push('================================');
+                lines.push('');
+                
+                const text = lines.join('\n') + '\n\n';
+                const encoder = new TextEncoder();
+                const data = encoder.encode(text);
+                
+                await writer.write(data);
+                writer.releaseLock();
+                
+                showToast('Da in bill!');
+            } catch(e) {
+                showToast('Loi in: ' + e.message, true);
             }
         }
         
@@ -1371,8 +1447,13 @@
         }
         
         async function printKitchenBill(order) {
+            if (usbPort && usbPort.writable) {
+                await printViaUSB(order);
+                return;
+            }
+            
             if (!btDevice || !btDevice.gatt.connected) {
-                showToast('Chưa kết nối máy in!', true);
+                showToast('Chua ket noi may in!', true);
                 return;
             }
             
@@ -1397,11 +1478,11 @@
                 }
                 
                 if (!writeChar) {
-                    showToast('Không tìm thấy cổng in!', true);
+                    showToast('Khong tim thay cong in!', true);
                     return;
                 }
 
-                const shopName = document.getElementById('shopName').value || 'SUMO QUÁN';
+                const shopName = document.getElementById('shopName').value || 'SUMO QUAN';
                 const lines = [];
                 lines.push('================================');
                 lines.push(shopName);

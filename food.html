@@ -1334,8 +1334,8 @@
             try {
                 showToast('Đang tìm máy in...');
                 const device = await navigator.bluetooth.requestDevice({
-                    filters: [{ services: ['00001800-0000-1000-8000-00805f9b34fb', '00001801-0000-1000-8000-00805f9b34fb', '0000180a-0000-1000-8000-00805f9b34fb'] }],
-                    optionalServices: ['generic_access', 'generic_hid', 'device_information']
+                    acceptAllDevices: true,
+                    optionalServices: ['battery_service', 'device_information']
                 });
                 
                 const server = await device.gatt.connect();
@@ -1374,30 +1374,33 @@
         
         async function printKitchenBill(order) {
             if (!btDevice || !btDevice.gatt.connected) {
-                try {
-                    const devices = await navigator.bluetooth.getDevices();
-                    const savedId = localStorage.getItem('bt_device_id');
-                    if (savedId) {
-                        const device = await navigator.bluetooth.selectDevice({ filters: [] });
-                        if (device.id === savedId) {
-                            const server = await device.gatt.connect();
-                            btDevice = device;
-                        }
-                    }
-                } catch(e) {
-                    showToast('Chưa kết nối máy in!', true);
-                    return;
-                }
-            }
-            
-            if (!btDevice || !btDevice.gatt.connected) {
                 showToast('Chưa kết nối máy in!', true);
                 return;
             }
             
             try {
-                const service = await btDevice.gatt.getPrimaryService('00001801-0000-1000-8000-00805f9b34fb');
-                const char = await service.getCharacteristic('00002a05-0000-1000-8000-00805f9b34fb');
+                const services = await btDevice.gatt.getPrimaryServices();
+                let service = services[0];
+                let char = null;
+                
+                for (const s of services) {
+                    try {
+                        const chars = await s.getCharacteristics();
+                        for (const c of chars) {
+                            if (c.properties.write || c.properties.writeWithoutResponse) {
+                                service = s;
+                                char = c;
+                                break;
+                            }
+                        }
+                        if (char) break;
+                    } catch(e) { continue; }
+                }
+                
+                if (!char) {
+                    showToast('Không tìm thấy cổng in!', true);
+                    return;
+                }
                 
                 const shopName = document.getElementById('shopName').value || 'SUMO QUÁN';
                 const lines = [];

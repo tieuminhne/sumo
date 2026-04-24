@@ -1380,72 +1380,60 @@
             
             try {
                 const services = await btDevice.gatt.getPrimaryServices();
-                console.log('Services:', services);
-                let char = null;
+                let writeChar = null;
                 
                 for (const s of services) {
-                    try {
-                        const chars = await s.getCharacteristics();
-                        console.log('Service', s.uuid, 'chars:', chars.map(c => c.uuid));
-                        for (const c of chars) {
-                            if (c.properties.write || c.properties.writeWithoutResponse) {
-                                char = c;
-                                break;
-                            }
+                    const chars = await s.getCharacteristics();
+                    for (const c of chars) {
+                        if (c.properties.write || c.properties.writeWithoutResponse) {
+                            writeChar = c;
+                            break;
                         }
-                        if (char) break;
-                    } catch(e) { console.log('Service error:', e); continue; }
-                }
-                
-                if (!char) {
-                    for (const s of services) {
-                        try {
-                            const chars = await s.getCharacteristics();
-                            if (chars.length > 0) {
-                                char = chars[0];
-                                break;
-                            }
-                        } catch(e) { continue; }
                     }
+                    if (writeChar) break;
                 }
                 
+                if (!writeChar && services.length > 0) {
+                    const chars = await services[0].getCharacteristics();
+                    writeChar = chars[0];
+                }
+                
+                if (!writeChar) {
+                    showToast('Không tìm thấy cổng in!', true);
+                    return;
+                }
+
                 const shopName = document.getElementById('shopName').value || 'SUMO QUÁN';
                 const lines = [];
                 lines.push('================================');
                 lines.push(shopName);
                 lines.push('--------------------------------');
-                lines.push(`BÀN: ${order.table}`);
-                lines.push(`Giờ: ${order.time}`);
+                lines.push(`BAN: ${order.table}`);
+                lines.push(`Gio: ${order.time}`);
                 lines.push('--------------------------------');
                 
                 order.items.forEach(item => {
-                    const qty = item.q.toString().padStart(3);
-                    const name = item.n;
-                    lines.push(`${qty}x ${name}`);
-                    if (item.note) {
-                        lines.push(`   * ${item.note}`);
-                    }
+                    lines.push(`${item.q}x ${item.n}`);
+                    if (item.note) lines.push(`   note: ${item.note}`);
                 });
-                
+
                 lines.push('--------------------------------');
-                lines.push(`TỔNG: ${fmt(order.total)}`);
+                lines.push(`TONG: ${fmt(order.total)}`);
                 lines.push('================================');
                 lines.push('');
-                lines.push('');
                 
-                const text = lines.join('\r\n') + '\f';
+                const text = lines.join('\n') + '\n';
                 const encoder = new TextEncoder();
                 const data = encoder.encode(text);
                 
-                await char.writeValue(data);
-                showToast('Đã in bill!');
+                await writeChar.writeValue(data);
+                showToast('Da in bill!');
             } catch(e) {
-                showToast('Lỗi in: ' + e.message, true);
+                showToast('Loi in: ' + e.message, true);
             }
         }
         
         setTimeout(loadQR, 500);
-        setTimeout(initBluetooth, 500);
     </script>
 </body>
 </html>

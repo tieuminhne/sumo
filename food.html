@@ -1379,27 +1379,33 @@
             }
             
             try {
-                const services = await btDevice.gatt.getPrimaryServices();
-                let service = services[0];
+                console.log('Services:', services);
                 let char = null;
                 
                 for (const s of services) {
                     try {
                         const chars = await s.getCharacteristics();
+                        console.log('Service', s.uuid, 'chars:', chars.map(c => c.uuid));
                         for (const c of chars) {
                             if (c.properties.write || c.properties.writeWithoutResponse) {
-                                service = s;
                                 char = c;
                                 break;
                             }
                         }
                         if (char) break;
-                    } catch(e) { continue; }
+                    } catch(e) { console.log('Service error:', e); continue; }
                 }
                 
                 if (!char) {
-                    showToast('Không tìm thấy cổng in!', true);
-                    return;
+                    for (const s of services) {
+                        try {
+                            const chars = await s.getCharacteristics();
+                            if (chars.length > 0) {
+                                char = chars[0];
+                                break;
+                            }
+                        } catch(e) { continue; }
+                    }
                 }
                 
                 const shopName = document.getElementById('shopName').value || 'SUMO QUÁN';

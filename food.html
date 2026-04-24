@@ -1310,7 +1310,27 @@
         let btDevice = null;
         let btCharacteristic = null;
         
+        function isBluetoothSupported() {
+            return 'bluetooth' in navigator;
+        }
+        
+        function initBluetooth() {
+            if (!isBluetoothSupported()) {
+                document.getElementById('btSection').innerHTML = '<div style="color:#f44336;font-size:13px;padding:20px">❌ Trình duyệt không hỗ trợ Bluetooth.<br><br>Dùng <b>Chrome</b> hoặc <b>Edge</b> trên máy tính hoặc Android.<br>Yêu cầu HTTPS hoặc localhost.</div>';
+                return;
+            }
+            const savedName = localStorage.getItem('bt_device_name');
+            if (savedName) {
+                document.getElementById('btDeviceName').textContent = savedName;
+                document.getElementById('btStatusText').textContent = 'Đã lưu (nhấn để kết nối)';
+            }
+        }
+        
         async function connectBluetooth() {
+            if (!isBluetoothSupported()) {
+                showToast('Trình duyệt không hỗ trợ Bluetooth!', true);
+                return;
+            }
             try {
                 showToast('Đang tìm máy in...');
                 const device = await navigator.bluetooth.requestDevice({

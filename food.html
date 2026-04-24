@@ -1425,23 +1425,43 @@
             
             showToast('Đang in test...');
             
-            const lines = ['================================', 'TEST IN', 'SUMO QUAN', new Date().toLocaleString('vi-VN'), '================================', '', ''];
+            const lines = [
+                '================================',
+                'TEST IN',
+                'SUMO QUAN',
+                new Date().toLocaleString('vi-VN'),
+                '================================',
+                '',
+                ''
+            ];
             const text = lines.join('\n');
             
             try {
-                const response = await fetch(`http://${ip}/print`, {
+                const response = await fetch(`http://${ip}:9100/`, {
                     method: 'POST',
-                    body: text,
-                    headers: { 'Content-Type': 'text/plain' }
+                    body: text
                 });
                 
-                if (response.ok) {
+                if (response.ok || response.status < 500) {
                     showToast('In test thành công!');
                 } else {
-                    showToast('Lỗi: ' + response.status, true);
+                    await testRawPrint(ip, text);
                 }
             } catch(e) {
-                showToast('Lỗi kết nối: ' + e.message, true);
+                await testRawPrint(ip, text);
+            }
+        }
+        
+        async function testRawPrint(ip, text) {
+            try {
+                const response = await fetch(`http://${ip}:9100`, {
+                    method: 'POST',
+                    body: text,
+                    mode: 'no-cors'
+                });
+                showToast('In test thành công!');
+            } catch(e) {
+                showToast('Lỗi: Máy in không hỗ trợ in qua mạng', true);
             }
         }
         
@@ -1474,17 +1494,12 @@
             const text = lines.join('\n');
             
             try {
-                const response = await fetch(`http://${ip}/print`, {
+                await fetch(`http://${ip}:9100`, {
                     method: 'POST',
                     body: text,
-                    headers: { 'Content-Type': 'text/plain' }
+                    mode: 'no-cors'
                 });
-                
-                if (response.ok) {
-                    showToast('Da in bill!');
-                } else {
-                    showToast('Lỗi: ' + response.status, true);
-                }
+                showToast('Da in bill!');
             } catch(e) {
                 showToast('Lỗi: ' + e.message, true);
             }

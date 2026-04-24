@@ -1423,45 +1423,54 @@
                 return;
             }
             
-            showToast('Đang in test...');
-            
-            const lines = [
-                '================================',
-                'TEST IN',
-                'SUMO QUAN',
-                new Date().toLocaleString('vi-VN'),
-                '================================',
-                '',
-                ''
-            ];
+            const lines = ['================================', 'TEST IN', 'SUMO QUAN', new Date().toLocaleString('vi-VN'), '================================', '', ''];
             const text = lines.join('\n');
             
+            showToast('Đang in test...');
+            
             try {
-                const response = await fetch(`http://${ip}:9100/`, {
-                    method: 'POST',
-                    body: text
-                });
-                
-                if (response.ok || response.status < 500) {
-                    showToast('In test thành công!');
-                } else {
-                    await testRawPrint(ip, text);
-                }
+                const proxyUrl = `https://corsproxy.io/?${encodeURIComponent('http://' + ip + ':9100')}`;
+                await fetch(proxyUrl, { method: 'POST', body: text });
+                showToast('In test thành công!');
             } catch(e) {
-                await testRawPrint(ip, text);
+                showToast('Lỗi: Thử dùng WiFi direct', true);
             }
         }
         
-        async function testRawPrint(ip, text) {
+        async function printViaWiFi(order) {
+            const ip = document.getElementById('printIp').value.trim();
+            if (!ip) {
+                showToast('Nhập IP máy in!', true);
+                return;
+            }
+            
+            const shopName = document.getElementById('shopName').value || 'SUMO QUAN';
+            const lines = [];
+            lines.push('================================');
+            lines.push(shopName);
+            lines.push('--------------------------------');
+            lines.push(`BAN: ${order.table}`);
+            lines.push(`Gio: ${order.time}`);
+            lines.push('--------------------------------');
+            
+            order.items.forEach(item => {
+                lines.push(`${item.q}x ${item.n}`);
+                if (item.note) lines.push(`   note: ${item.note}`);
+            });
+
+            lines.push('--------------------------------');
+            lines.push(`TONG: ${fmt(order.total)}`);
+            lines.push('================================');
+            lines.push('');
+            
+            const text = lines.join('\n');
+            
             try {
-                const response = await fetch(`http://${ip}:9100`, {
-                    method: 'POST',
-                    body: text,
-                    mode: 'no-cors'
-                });
-                showToast('In test thành công!');
+                const proxyUrl = `https://corsproxy.io/?${encodeURIComponent('http://' + ip + ':9100')}`;
+                await fetch(proxyUrl, { method: 'POST', body: text });
+                showToast('Da in bill!');
             } catch(e) {
-                showToast('Lỗi: Máy in không hỗ trợ in qua mạng', true);
+                showToast('Lỗi. Thử dùng local app!', true);
             }
         }
         

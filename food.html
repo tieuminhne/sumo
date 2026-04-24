@@ -159,6 +159,8 @@
         .bt-device{font-size:13px;color:#fff;margin-bottom:12px;font-weight:600}
         .bt-btn{padding:14px 24px;background:linear-gradient(135deg,#2196f3 0%,#1976d2 100%);color:#fff;border:none;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;box-shadow:0 6px 20px rgba(33,150,243,0.3)}
         .bt-btn-usb{padding:14px 24px;background:linear-gradient(135deg,#4caf50 0%,#388e3c 100%);color:#fff;border:none;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;box-shadow:0 6px 20px rgba(76,175,80,0.3);margin-top:10px}
+        .bt-btn-net{padding:14px 24px;background:linear-gradient(135deg,#ff9800 0%,#f57c00 100%);color:#fff;border:none;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;box-shadow:0 6px 20px rgba(255,152,0,0.3);margin-top:10px}
+        .print-ip-input{width:120px;padding:10px;font-size:14px;border:2px solid #ff9800;border-radius:8px;background:rgba(255,255,255,0.1);color:#fff;text-align:center}
         .print-icon{width:40px;height:40px;background:linear-gradient(135deg,#4caf50 0%,#388e3c 100%);border:none;border-radius:10px;color:#fff;font-size:20px;cursor:pointer;box-shadow:0 4px 15px rgba(76,175,80,0.3);display:flex;align-items:center;justify-content:center}
     </style>
 </head>
@@ -336,9 +338,9 @@
         <div class="setting-section">
             <div class="setting-title">🖨️ In Bill Bếp</div>
 <div class="bt-section" id="btSection">
-                        <div style="font-size:12px;color:#2196f3;margin-bottom:10px;text-align:left">
-                            📱 Android: Dùng app máy in để in<br>
-                            💻 Desktop Chrome: Dùng USB để in
+                        <div style="font-size:12px;color:#ff9800;margin-bottom:10px;text-align:left">
+                            🔌 USB: Desktop Chrome<br>
+                            📶 WiFi: Nhập IP máy in (xem IP trên máy in)
                         </div>
                         <div class="bt-status">
                             <div class="bt-status-dot" id="btStatusDot"></div>
@@ -347,6 +349,10 @@
                         <div class="bt-device" id="btDeviceName"></div>
                         <button class="bt-btn" id="btConnectBtn" onclick="connectBluetooth()">🔗 Kết Nối Bluetooth</button>
                         <button class="bt-btn-usb" id="usbConnectBtn" onclick="connectUSB()">🔌 Kết Nối USB</button>
+                        <div style="margin-top:10px">
+                            <input type="text" id="printIp" class="print-ip-input" placeholder="192.168.x.x" value="192.168.100.82">
+                            <button class="bt-btn-net" onclick="testPrintIP()">📶 In Test</button>
+                        </div>
                     </div>
         </div>
     </main>
@@ -1410,6 +1416,80 @@
             }
         }
         
+        async function testPrintIP() {
+            const ip = document.getElementById('printIp').value.trim();
+            if (!ip) {
+                showToast('Nhập IP máy in!', true);
+                return;
+            }
+            
+            showToast('Đang in test...');
+            
+            const lines = ['================================', 'TEST IN', 'SUMO QUAN', new Date().toLocaleString('vi-VN'), '================================', '', ''];
+            const text = lines.join('\n');
+            
+            try {
+                const response = await fetch(`http://${ip}/print`, {
+                    method: 'POST',
+                    body: text,
+                    headers: { 'Content-Type': 'text/plain' }
+                });
+                
+                if (response.ok) {
+                    showToast('In test thành công!');
+                } else {
+                    showToast('Lỗi: ' + response.status, true);
+                }
+            } catch(e) {
+                showToast('Lỗi kết nối: ' + e.message, true);
+            }
+        }
+        
+        async function printViaWiFi(order) {
+            const ip = document.getElementById('printIp').value.trim();
+            if (!ip) {
+                showToast('Nhập IP máy in!', true);
+                return;
+            }
+            
+            const shopName = document.getElementById('shopName').value || 'SUMO QUAN';
+            const lines = [];
+            lines.push('================================');
+            lines.push(shopName);
+            lines.push('--------------------------------');
+            lines.push(`BAN: ${order.table}`);
+            lines.push(`Gio: ${order.time}`);
+            lines.push('--------------------------------');
+            
+            order.items.forEach(item => {
+                lines.push(`${item.q}x ${item.n}`);
+                if (item.note) lines.push(`   note: ${item.note}`);
+            });
+
+            lines.push('--------------------------------');
+            lines.push(`TONG: ${fmt(order.total)}`);
+            lines.push('================================');
+            lines.push('');
+            
+            const text = lines.join('\n');
+            
+            try {
+                const response = await fetch(`http://${ip}/print`, {
+                    method: 'POST',
+                    body: text,
+                    headers: { 'Content-Type': 'text/plain' }
+                });
+                
+                if (response.ok) {
+                    showToast('Da in bill!');
+                } else {
+                    showToast('Lỗi: ' + response.status, true);
+                }
+            } catch(e) {
+                showToast('Lỗi: ' + e.message, true);
+            }
+        }
+        
         async function connectBluetooth() {
             if (!isBluetoothSupported()) {
                 showToast('Trình duyệt không hỗ trợ Bluetooth!', true);
@@ -1455,6 +1535,12 @@
         }
         
         async function printKitchenBill(order) {
+            const printIp = document.getElementById('printIp').value.trim();
+            if (printIp) {
+                await printViaWiFi(order);
+                return;
+            }
+            
             if (usbPort && usbPort.writable) {
                 await printViaUSB(order);
                 return;

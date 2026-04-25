@@ -244,7 +244,8 @@
                     <button onclick="showStatsByDay()" id="btnDay" style="flex:1;padding:18px;border:2px solid var(--gold);border-radius:16px;background:linear-gradient(135deg,var(--gold) 0%,#b8962e 100%);color:#1a1a2e;font-weight:800;font-size:14px;box-shadow:0 10px 30px rgba(212,175,55,0.3);text-transform:uppercase;letter-spacing:1px">📅 Theo Ngày</button>
                     <button onclick="showStatsByMonth()" id="btnMonth" style="flex:1;padding:18px;border:2px solid rgba(255,255,255,0.1);border-radius:16px;background:linear-gradient(145deg,rgba(255,255,255,0.08) 0%,rgba(255,255,255,0.02) 100%);color:rgba(255,255,255,0.5);font-weight:800;font-size:14px;text-transform:uppercase;letter-spacing:1px">📆 Theo Tháng</button>
                 </div>
-                
+                <div id="statsStaffFilterWrap" style="display:none;margin-bottom:18px"></div>
+                <div id="paymentSummary" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:18px"></div>
                 <div id="statsList"></div>
             </div>
         </div>
@@ -424,6 +425,9 @@
         let useCloud = false;
         let soundUnlocked = false;
         let isPlacingOrder = false;
+        let currentMember = null;
+        let currentStaffName = 'Nhân viên';
+        let statsStaffFilter = 'me';
         
         async function getMappedOrders() {
             const data = await fetchOrders();
@@ -434,6 +438,10 @@
                 total: o.total,
                 status: o.status,
                 paid: o.paid,
+                paymentMethod: o.payment_method || '',
+                paidByUserId: o.paid_by_user_id || '',
+                paidByName: o.paid_by_name || '',
+                paidAt: o.paid_at ? new Date(o.paid_at).getTime() : 0,
                 time: new Date(o.created_at).toLocaleString('vi-VN',{year:'numeric',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}),
                 updatedAt: new Date(o.updated_at || o.created_at).getTime()
             }));
@@ -466,6 +474,47 @@
         ];
         
         function fmt(n) {return Number(n || 0).toLocaleString('vi') + 'đ'}
+        function escapeHtml(s) { return String(s || '').replace(/[&<>\"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[c])); }
+        function isOwner() { return _currentRole === 'owner'; }
+        function getStaffLabel(order) { return order.paidByName || 'Chưa rõ'; }
+        function getScopedPaidOrders() {
+            const completedOrders = orders.filter(o => o.status === 1 && o.paid);
+            if (isOwner()) {
+                if (statsStaffFilter === 'all') return completedOrders;
+                if (statsStaffFilter === 'me') return completedOrders.filter(o => o.paidByUserId === (_currentUser?.id || ''));
+                return completedOrders.filter(o => o.paidByUserId === statsStaffFilter);
+            }
+            return completedOrders.filter(o => o.paidByUserId === (_currentUser?.id || ''));
+        }
+        function renderStatsStaffFilter() {
+            const wrap = document.getElementById('statsStaffFilterWrap');
+            if (!wrap) return;
+            if (!isOwner()) { wrap.style.display = 'none'; wrap.innerHTML = ''; return; }
+            const paidOrders = orders.filter(o => o.status === 1 && o.paid);
+            const staffMap = new Map();
+            paidOrders.forEach(o => {
+                if (!o.paidByUserId) return;
+                if (!staffMap.has(o.paidByUserId)) staffMap.set(o.paidByUserId, getStaffLabel(o));
+            });
+            const options = ['<option value="all">Tất cả nhân viên</option>', '<option value="me">Tôi</option>']
+                .concat(Array.from(staffMap.entries()).sort((a, b) => a[1].localeCompare(b[1], 'vi')).map(([id, name]) => `<option value="${escapeHtml(id)}">${escapeHtml(name)}</option>`));
+            wrap.style.display = 'block';
+            wrap.innerHTML = `<div style="font-size:11px;color:var(--gold);font-weight:700;margin-bottom:8px;letter-spacing:1px">NHÂN VIÊN GIỮ TIỀN</div><select id="statsStaffFilter" onchange="changeStatsStaffFilter(this.value)" style="width:100%;padding:14px;border:2px solid rgba(255,255,255,0.12);border-radius:14px;background:rgba(255,255,255,0.06);color:#fff;font-size:14px">${options.join('')}</select>`;
+            wrap.querySelector('select').value = statsStaffFilter;
+        }
+        function changeStatsStaffFilter(value) {
+            statsStaffFilter = value;
+            renderStats();
+        }
+        function renderPaymentSummary(paidOrders) {
+            const paymentSummary = document.getElementById('paymentSummary');
+            if (!paymentSummary) return;
+            const cashOrders = paidOrders.filter(o => o.paymentMethod === 'Tiền mặt');
+            const transferOrders = paidOrders.filter(o => o.paymentMethod === 'Chuyển khoản');
+            const cashTotal = cashOrders.reduce((sum, o) => sum + Number(o.total || 0), 0);
+            const transferTotal = transferOrders.reduce((sum, o) => sum + Number(o.total || 0), 0);
+            paymentSummary.innerHTML = `<div style="background:linear-gradient(145deg,rgba(0,184,148,0.15) 0%,rgba(0,184,148,0.04) 100%);border-radius:18px;padding:18px;border:1px solid rgba(0,184,148,0.25)"><div style="font-size:11px;color:#7bedc4;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Tiền mặt</div><div style="font-size:24px;font-weight:900;color:#fff">${fmt(cashTotal)}</div><div style="font-size:12px;color:rgba(255,255,255,0.55);margin-top:6px">${cashOrders.length} đơn</div></div><div style="background:linear-gradient(145deg,rgba(52,152,219,0.15) 0%,rgba(52,152,219,0.04) 100%);border-radius:18px;padding:18px;border:1px solid rgba(52,152,219,0.25)"><div style="font-size:11px;color:#74b9ff;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Chuyển khoản</div><div style="font-size:24px;font-weight:900;color:#fff">${fmt(transferTotal)}</div><div style="font-size:12px;color:rgba(255,255,255,0.55);margin-top:6px">${transferOrders.length} đơn</div></div>`;
+        }
         
         function renderMenu() {
             const q = (document.getElementById('menuSearch')?.value || '').trim().toLowerCase();
@@ -784,7 +833,8 @@
         }
         
         function renderStats() {
-            const completedOrders = orders.filter(o => o.status === 1);
+            renderStatsStaffFilter();
+            const completedOrders = getScopedPaidOrders();
             const today = new Date();
             const todayStr = `${today.getDate().toString().padStart(2,'0')}/${(today.getMonth()+1).toString().padStart(2,'0')}`;
             const thisMonth = `${(today.getMonth()+1).toString().padStart(2,'0')}/${today.getFullYear()}`;
@@ -796,7 +846,6 @@
                     const monthStr = parts[1].slice(-2) + '/' + parts[2].split(' ')[0].split(',')[0];
                     return monthStr === thisMonth;
                 }
-                // Fallback nếu không có năm (lấy tháng hiện tại)
                 const fallbackMonth = o.time.split('/')[1]?.split(' ')[0]?.split(',')[0]?.replace(/[^0-9]/g, '');
                 return fallbackMonth === thisMonth.split('/')[0];
             });
@@ -809,6 +858,7 @@
             document.getElementById('todayOrders').textContent = todayOrders.length + ' đơn';
             document.getElementById('monthRevenue').textContent = fmt(monthTotal);
             document.getElementById('totalRevenue').textContent = fmt(allTotal);
+            renderPaymentSummary(completedOrders);
             
             const list = document.getElementById('statsList');
             
@@ -816,9 +866,11 @@
                 const byDay = {};
                 completedOrders.forEach(o => {
                     const d = o.time.split(' ')[0];
-                    if (!byDay[d]) byDay[d] = {count:0, total:0, items:{}};
+                    if (!byDay[d]) byDay[d] = {count:0, total:0, items:{}, cash:0, transfer:0};
                     byDay[d].count++;
                     byDay[d].total += o.total;
+                    if (o.paymentMethod === 'Tiền mặt') byDay[d].cash += o.total;
+                    if (o.paymentMethod === 'Chuyển khoản') byDay[d].transfer += o.total;
                     o.items.forEach(i => {
                         if (!byDay[d].items[i.n]) byDay[d].items[i.n] = 0;
                         byDay[d].items[i.n] += i.q;
@@ -840,6 +892,8 @@
                                 <span style="color:var(--gold);font-weight:800">${fmt(byDay[d].total)}</span>
                             </div>
                             <div style="font-size:12px;color:rgba(255,255,255,0.4)">${byDay[d].count} đơn</div>
+                            <div style="margin-top:8px;font-size:12px;color:#7bedc4">Tiền mặt: ${fmt(byDay[d].cash)}</div>
+                            <div style="margin-top:4px;font-size:12px;color:#74b9ff">Chuyển khoản: ${fmt(byDay[d].transfer)}</div>
                             <div style="margin-top:8px;font-size:12px;color:rgba(255,255,255,0.5)">${topItems.map(([n,q]) => `${n}: ${q}`).join(' • ')}</div>
                         </div>`;
                     }).join('');
@@ -853,9 +907,11 @@
                     } else if (parts.length === 2) {
                         m = parts[1].split(' ')[0].split(',')[0].replace(/[^0-9]/g, '') + '/' + new Date().getFullYear();
                     }
-                    if (!byMonth[m]) byMonth[m] = {count:0, total:0};
+                    if (!byMonth[m]) byMonth[m] = {count:0, total:0, cash:0, transfer:0};
                     byMonth[m].count++;
                     byMonth[m].total += o.total;
+                    if (o.paymentMethod === 'Tiền mặt') byMonth[m].cash += o.total;
+                    if (o.paymentMethod === 'Chuyển khoản') byMonth[m].transfer += o.total;
                 });
                 
                 const sortedMonths = Object.keys(byMonth).sort((a,b) => {
@@ -871,6 +927,8 @@
                             <span style="color:var(--gold);font-weight:800">${fmt(byMonth[m].total)}</span>
                         </div>
                         <div style="font-size:12px;color:rgba(255,255,255,0.4);margin-top:6px">${byMonth[m].count} đơn</div>
+                        <div style="margin-top:8px;font-size:12px;color:#7bedc4">Tiền mặt: ${fmt(byMonth[m].cash)}</div>
+                        <div style="margin-top:4px;font-size:12px;color:#74b9ff">Chuyển khoản: ${fmt(byMonth[m].transfer)}</div>
                     </div>`).join('');
             }
         }
@@ -954,28 +1012,43 @@
                             <div style="text-align:right">
                                 <div style="font-weight:900;font-size:20px;color:var(--gold)">${fmt(o.total)}</div>
                                 <div style="font-size:12px;color:${o.paid ? '#4caf50' : 'var(--primary)'}">${o.paid ? '✓ ĐÃ TT' : '⏳ CHƯA TT'}</div>
+                                ${o.paid && o.paidByName ? `<div style="font-size:12px;color:rgba(255,255,255,0.55);margin-top:4px">👤 ${o.paidByName}${o.paymentMethod ? ` • ${o.paymentMethod}` : ''}</div>` : ''}
                             </div>
                         </div>
                         <div style="color:rgba(255,255,255,0.6);font-size:14px;margin-bottom:14px">${o.items.map(x=>`${x.q}× ${x.n}`).join(', ')}</div>
-                        ${!o.paid ? `<button onclick="markPaid(${realIdx})" style="background:linear-gradient(135deg,#00b894 0%,#00a383 100%);color:#fff;border:none;padding:14px 20px;border-radius:12px;font-size:15px;font-weight:800;cursor:pointer;width:100%;box-shadow:0 8px 25px rgba(0,184,148,0.3)">✓ XÁC NHẬN ĐÃ THANH TOÁN</button>` : `<div style="text-align:center;padding:12px;background:rgba(76,175,80,0.2);border-radius:10px;color:#4caf50;font-weight:700;font-size:14px">✓ ĐÃ THANH TOÁN</div>`}
+                        ${!o.paid ? `<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><button onclick="markPaid(${realIdx}, 'Tiền mặt')" style="background:linear-gradient(135deg,#00b894 0%,#00a383 100%);color:#fff;border:none;padding:14px 16px;border-radius:12px;font-size:15px;font-weight:800;cursor:pointer;box-shadow:0 8px 25px rgba(0,184,148,0.3)">💵 TIỀN MẶT</button><button onclick="markPaid(${realIdx}, 'Chuyển khoản')" style="background:linear-gradient(135deg,#3498db 0%,#2980b9 100%);color:#fff;border:none;padding:14px 16px;border-radius:12px;font-size:15px;font-weight:800;cursor:pointer;box-shadow:0 8px 25px rgba(52,152,219,0.3)">🏦 CHUYỂN KHOẢN</button></div>` : `<div style="text-align:center;padding:12px;background:rgba(76,175,80,0.2);border-radius:10px;color:#4caf50;font-weight:700;font-size:14px">✓ ĐÃ THANH TOÁN</div>`}
                     </div>`;
                     }).join('') :
                     `<div style="text-align:center;padding:60px;color:rgba(255,255,255,0.3)">✨ Tất cả đơn đã thanh toán!</div>`;
             }
         }
         
-        async function markPaid(idx) {
+        async function markPaid(idx, paymentMethod = 'Thanh toán') {
+            const paidAt = Date.now();
+            const paidByUserId = _currentUser?.id || '';
+            const paidByName = currentStaffName;
             if (useCloud) {
                 try {
-                    await updateOrderPaid(orders[idx].id, true);
+                    await updateOrderPaid(orders[idx].id, true, {
+                        payment_method: paymentMethod,
+                        paid_by_user_id: paidByUserId,
+                        paid_by_name: paidByName,
+                        paid_at: new Date(paidAt).toISOString()
+                    });
                     orders = await getMappedOrders();
                 } catch(e) { showToast('Lỗi: ' + e.message, true); return; }
             } else {
                 orders[idx].paid = true;
+                orders[idx].paymentMethod = paymentMethod;
+                orders[idx].paidByUserId = paidByUserId;
+                orders[idx].paidByName = paidByName;
+                orders[idx].paidAt = paidAt;
+                orders[idx].updatedAt = paidAt;
                 localStorage.setItem('food_orders', JSON.stringify(orders));
             }
             renderKitchen();
-            showToast('Đã xác nhận thanh toán!');
+            renderStats();
+            showToast(`Đã xác nhận ${paymentMethod.toLowerCase()} - ${paidByName}!`);
         }
         
         function speakOrder(text) {
@@ -1217,7 +1290,8 @@
                         return;
                     }
                     _currentUser = session.user;
-                    await loadUserShop();
+                    currentMember = await loadUserShop();
+                    currentStaffName = session.user.email || 'Nhân viên';
                     useCloud = true;
                     menu = await fetchMenu();
                     if (!menu.length) {
@@ -1256,7 +1330,7 @@
                     }, 5000);
 
                     document.getElementById('logoutBtn').style.display = 'block';
-                    document.getElementById('appStatus').innerText = 'v3 (Cloud)';
+                    document.getElementById('appStatus').innerText = isOwner() ? `v3 (Owner)` : `v3 (${currentStaffName})`;
                 }
             } catch(e) {
                 alert('Không tải được dữ liệu quán: ' + e.message);

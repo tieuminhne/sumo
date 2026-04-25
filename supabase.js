@@ -202,9 +202,14 @@ async function updateOrderStatus(orderId, status) {
     if (error) throw error;
 }
 
-async function updateOrderPaid(orderId, paid) {
+async function updateOrderPaid(orderId, paid, metadata = {}) {
     const sb = getSupabase();
-    const { error } = await sb.from('orders').update({ paid, updated_at: new Date().toISOString() }).eq('id', orderId);
+    const updates = { paid, updated_at: new Date().toISOString() };
+    if (metadata.payment_method !== undefined) updates.payment_method = metadata.payment_method;
+    if (metadata.paid_by_user_id !== undefined) updates.paid_by_user_id = metadata.paid_by_user_id;
+    if (metadata.paid_by_name !== undefined) updates.paid_by_name = metadata.paid_by_name;
+    if (metadata.paid_at !== undefined) updates.paid_at = metadata.paid_at;
+    const { error } = await sb.from('orders').update(updates).eq('id', orderId);
     if (error) throw error;
 }
 

@@ -199,7 +199,7 @@
                         </div>
                     </div>
                 </div>
-                <button class="order-btn" onclick="placeOrder()">📦 Đặt Hàng Ngay</button>
+                <button class="order-btn" id="placeOrderBtn" onclick="placeOrder()">📦 Đặt Hàng Ngay</button>
             </div>
         </div>
         
@@ -423,6 +423,7 @@
         let settings = {};
         let useCloud = false;
         let soundUnlocked = false;
+        let isPlacingOrder = false;
         
         async function getMappedOrders() {
             const data = await fetchOrders();
@@ -600,12 +601,22 @@
         }
         
         async function placeOrder() {
+            if (isPlacingOrder) return;
             const table = document.getElementById('tableNumber').value.trim();
             if (!table) {showToast('Nhập số bàn!', true);return;}
             if (!cart.length) {showToast('Giỏ trống!', true);return;}
             
-            if (useCloud) {
-                try {
+            const placeOrderBtn = document.getElementById('placeOrderBtn');
+            isPlacingOrder = true;
+            if (placeOrderBtn) {
+                placeOrderBtn.disabled = true;
+                placeOrderBtn.textContent = '⏳ Đang gửi...';
+                placeOrderBtn.style.opacity = '0.7';
+                placeOrderBtn.style.cursor = 'not-allowed';
+            }
+            
+            try {
+                if (useCloud) {
                     const items = cart.map(i => ({name:i.name, qty:i.qty, price:i.price, note:i.note || ''}));
                     const result = await createOrder(table, items);
                     orders = await getMappedOrders();
@@ -618,56 +629,64 @@
                     renderKitchen();
                     renderStats();
                     showToast(result.merged ? 'Đã gộp vào đơn bàn hiện tại!' : 'Đặt hàng thành công!');
-                } catch(e) {
-                    showToast('Lỗi đặt hàng: ' + e.message, true);
+                    return;
                 }
-                return;
-            }
 
-            const total = cart.reduce((s,i) => s + i.price * i.qty, 0);
-            const newItems = cart.map(i => ({n:i.name, q:i.qty, p:i.price, note:i.note}));
-            const existingOrder = orders.find(o => o.table === table && o.status === 0);
-            
-            if (existingOrder) {
-                newItems.forEach(item => {
-                    const existItem = existingOrder.items.find(x => x.n === item.n && x.note === item.note && x.p === item.p);
-                    if (existItem) {
-                        existItem.q += item.q;
-                    } else {
-                        existingOrder.items.push(item);
-                    }
-                });
-                existingOrder.total += total;
-                existingOrder.time = new Date().toLocaleString('vi-VN',{year:'numeric',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
-            } else {
-                orders.unshift({
-                    id: Date.now(),
-                    table,
-                    items: newItems,
-                    total,
-                    status: 0,
-                    paid: false,
-                    time: new Date().toLocaleString('vi-VN',{year:'numeric',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})
-                });
+                const total = cart.reduce((s,i) => s + i.price * i.qty, 0);
+                const newItems = cart.map(i => ({n:i.name, q:i.qty, p:i.price, note:i.note}));
+                const existingOrder = orders.find(o => o.table === table && o.status === 0);
+                
+                if (existingOrder) {
+                    newItems.forEach(item => {
+                        const existItem = existingOrder.items.find(x => x.n === item.n && x.note === item.note && x.p === item.p);
+                        if (existItem) {
+                            existItem.q += item.q;
+                        } else {
+                            existingOrder.items.push(item);
+                        }
+                    });
+                    existingOrder.total += total;
+                    existingOrder.time = new Date().toLocaleString('vi-VN',{year:'numeric',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+                } else {
+                    orders.unshift({
+                        id: Date.now(),
+                        table,
+                        items: newItems,
+                        total,
+                        status: 0,
+                        paid: false,
+                        time: new Date().toLocaleString('vi-VN',{year:'numeric',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})
+                    });
+                }
+                
+                localStorage.setItem('food_orders', JSON.stringify(orders));
+                
+                try {
+                    const channel = new BroadcastChannel('food_orders');
+                    channel.postMessage({type:'new_order', table, items:cart.map(i=>`${i.qty} ${i.name}`).join(', ')});
+                    channel.close();
+                } catch(e) {}
+                
+                cart = [];
+                document.getElementById('tableNumber').value = '';
+                document.getElementById('tableQRDisplay').style.display = 'none';
+                saveCart();
+                updateBadge();
+                renderCart();
+                renderKitchen();
+                renderStats();
+                showToast(existingOrder ? 'Đã gộp vào đơn bàn hiện tại!' : 'Đặt hàng thành công!');
+            } catch(e) {
+                showToast('Lỗi đặt hàng: ' + e.message, true);
+            } finally {
+                isPlacingOrder = false;
+                if (placeOrderBtn) {
+                    placeOrderBtn.disabled = false;
+                    placeOrderBtn.textContent = '📦 Đặt Hàng Ngay';
+                    placeOrderBtn.style.opacity = '';
+                    placeOrderBtn.style.cursor = '';
+                }
             }
-            
-            localStorage.setItem('food_orders', JSON.stringify(orders));
-            
-            try {
-                const channel = new BroadcastChannel('food_orders');
-                channel.postMessage({type:'new_order', table, items:cart.map(i=>`${i.qty} ${i.name}`).join(', ')});
-                channel.close();
-            } catch(e) {}
-            
-            cart = [];
-            document.getElementById('tableNumber').value = '';
-            document.getElementById('tableQRDisplay').style.display = 'none';
-            saveCart();
-            updateBadge();
-            renderCart();
-            renderKitchen();
-            renderStats();
-            showToast(existingOrder ? 'Đã gộp vào đơn bàn hiện tại!' : 'Đặt hàng thành công!');
         }
         
         function renderOrders() {

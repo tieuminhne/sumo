@@ -1,0 +1,1207 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+    <meta name="theme-color" content="#c41e3a">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="manifest" href="manifest.json">
+    <title>Drinks Order</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase.js"></script>
+    <style>
+        :root{--primary:#c41e3a;--primary-dark:#a01830;--gold:#d4af37;--gold-light:#f4e4bc;--dark:#1a1a2e;--light:#fafafa}
+        *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+        html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--dark);color:#fff}
+        body{display:flex;flex-direction:column;max-width:480px;margin:0 auto}
+        
+        .header{background:var(--primary);color:#fff;padding:10px 16px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:100;box-shadow:0 4px 20px rgba(196,30,58,0.4)}
+        .header h1{font-size:18px;font-weight:700}
+        .cart-badge{background:#fff;color:var(--primary);font-size:11px;font-weight:800;padding:6px 10px;border-radius:20px;min-width:28px;text-align:center;box-shadow:0 3px 12px rgba(0,0,0,0.2)}
+        
+        .tabs{display:flex;background:rgba(255,255,255,0.05);border-bottom:1px solid rgba(255,255,255,0.1);position:sticky;top:52px;z-index:99}
+        .tab{flex:1;padding:14px 8px;text-align:center;font-size:13px;font-weight:600;color:rgba(255,255,255,0.5);border:none;background:0;cursor:pointer;position:relative}
+        .tab.active{color:var(--gold)}
+        .tab.active::before{content:'';position:absolute;top:0;left:50%;transform:translateX(-50%);width:40px;height:3px;background:var(--gold);border-radius:0 0 3px 3px}
+        
+        .content{flex:1;overflow-y:auto;padding-bottom:80px}
+        .tab-content{display:none}.tab-content.active{display:block}
+        
+        /* Menu Grid */
+        .menu-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;padding:16px}
+        .menu-item{background:linear-gradient(145deg,rgba(255,255,255,0.08) 0%,rgba(255,255,255,0.02) 100%);border-radius:16px;padding:16px;text-align:center;box-shadow:0 6px 16px rgba(0,0,0,0.22);border:1px solid rgba(255,255,255,0.08);transition:all 0.3s}
+        .menu-item:active{transform:scale(0.98)}
+        .menu-item .emoji{font-size:40px;margin-bottom:8px}
+        .menu-item .name{font-size:14px;font-weight:700;margin-bottom:6px}
+        .menu-item .price{font-size:16px;color:var(--gold);font-weight:700;margin-bottom:12px;text-shadow:0 2px 10px rgba(212,175,55,0.3)}
+        .add-btn{width:100%;padding:14px;background:linear-gradient(135deg,var(--primary) 0%,var(--primary-dark) 100%);color:#fff;border:none;font-size:13px;font-weight:700;cursor:pointer;transition:all 0.3s;letter-spacing:1px;text-transform:uppercase;border-radius:12px}
+        .add-btn:hover{background:linear-gradient(135deg,var(--gold) 0%,#b8962e 100%);color:var(--dark)}
+        
+        /* Cart */
+        .cart-items{padding:16px}
+        .cart-item{background:linear-gradient(145deg,rgba(255,255,255,0.08) 0%,rgba(255,255,255,0.02) 100%);border-radius:16px;padding:14px;margin-bottom:10px;box-shadow:0 6px 16px rgba(0,0,0,0.22);border-left:4px solid var(--gold);border:1px solid rgba(255,255,255,0.08)}
+        .cart-item-top{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+        .cart-item .emoji{font-size:32px}
+        .cart-item .info{flex:1}
+        .cart-item .name{font-weight:700;font-size:15px}
+        .cart-item .price{color:var(--gold);font-size:14px;font-weight:600}
+        .cart-options{font-size:12px;color:var(--gold);font-weight:500;padding:6px 10px;background:rgba(212,175,55,0.15);border-radius:8px;margin-top:8px;display:inline-block;border:1px solid rgba(212,175,55,0.2)}
+        .qty-control{display:flex;align-items:center;gap:8px}
+        .qty-btn{width:32px;height:32px;border:2px solid var(--gold);border-radius:10px;background:0;color:var(--gold);font-size:16px;font-weight:700;cursor:pointer;transition:all 0.3s}
+        .qty-btn:hover{background:var(--gold);color:var(--dark)}
+        .qty-num{font-size:14px;font-weight:700;min-width:24px;text-align:center;color:var(--gold)}
+        .remove-btn{color:var(--primary);background:rgba(196,30,58,0.2);border:0;font-size:14px;cursor:pointer;padding:8px;border-radius:8px;transition:all 0.3s;border:1px solid rgba(196,30,58,0.3)}
+        .remove-btn:hover{background:var(--primary);color:#fff}
+        
+        /* Summary */
+        .summary{background:linear-gradient(145deg,rgba(255,255,255,0.08) 0%,rgba(255,255,255,0.02) 100%);border-radius:16px;padding:16px;margin-top:10px;border:1px solid rgba(255,255,255,0.08)}
+        .summary-row{display:flex;justify-content:space-between;margin-bottom:12px;font-size:15px}
+        .summary-total{font-size:22px;font-weight:800;color:var(--gold);text-shadow:0 2px 15px rgba(212,175,55,0.3)}
+        .name-input{width:100%;padding:14px;font-size:16px;border:2px solid rgba(255,255,255,0.1);border-radius:12px;margin-bottom:12px;background:rgba(255,255,255,0.05);color:#fff}
+        .name-input:focus{border-color:var(--gold);outline:0;box-shadow:0 0 0 4px rgba(212,175,55,0.2)}
+        .name-input::placeholder{color:rgba(255,255,255,0.4)}
+        .order-btn{width:100%;padding:16px;background:linear-gradient(135deg,var(--gold) 0%,#b8962e 100%);color:var(--dark);border:none;border-radius:14px;font-size:14px;font-weight:800;cursor:pointer;box-shadow:0 8px 24px rgba(212,175,55,0.4);transition:all 0.3s;letter-spacing:1px;text-transform:uppercase}
+        
+        /* Orders */
+        .order-list{padding:16px}
+        .order-card{background:linear-gradient(145deg,rgba(255,255,255,0.08) 0%,rgba(255,255,255,0.02) 100%);border-radius:20px;padding:18px;margin-bottom:14px;box-shadow:0 8px 18px rgba(0,0,0,0.22);border-left:4px solid var(--primary);border:1px solid rgba(255,255,255,0.08)}
+        .order-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+        .order-customer{font-weight:700;font-size:16px}
+        .order-time{font-size:12px;color:rgba(255,255,255,0.4)}
+        .order-status{font-size:12px;padding:6px 12px;border-radius:20px;font-weight:700}
+        .status-making{background:rgba(255,152,0,0.2);color:#ff9800;border:1px solid rgba(255,152,0,0.3)}
+        .status-done{background:rgba(76,175,80,0.2);color:#4caf50;border:1px solid rgba(76,175,80,0.3)}
+        .order-items{font-size:13px;color:rgba(255,255,255,0.6);margin-bottom:8px}
+        .order-total{font-weight:800;color:var(--gold);font-size:16px}
+        .order-actions{display:flex;gap:8px;margin-top:10px}
+        .action-btn{flex:1;padding:10px;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer}
+        .toggle-btn{background:rgba(255,255,255,0.1);color:#fff}
+        .delete-btn{background:linear-gradient(135deg,var(--primary) 0%,var(--primary-dark) 100%);color:#fff;box-shadow:0 6px 20px rgba(196,30,58,0.3)}
+        .clear-all{text-align:center;padding:10px}
+        .clear-btn{color:var(--gold);background:0;border:0;font-size:13px;cursor:pointer;padding:12px;font-weight:600}
+        
+        /* Settings */
+        .settings{padding:16px}
+        .setting-section{background:linear-gradient(145deg,rgba(255,255,255,0.08) 0%,rgba(255,255,255,0.02) 100%);border-radius:16px;padding:16px;margin-bottom:12px;border:1px solid rgba(255,255,255,0.08)}
+        .setting-title{font-weight:700;font-size:16px;margin-bottom:12px;color:#fff;display:flex;align-items:center;gap:8px}
+        .setting-title::before{content:'';width:5px;height:22px;background:linear-gradient(180deg,var(--gold),var(--primary));border-radius:3px}
+        .edit-item{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.1)}
+        .edit-item:last-child{border-bottom:none}
+        .edit-item .emoji{font-size:32px}
+        .edit-item .info{flex:1}
+        .edit-item .name{font-weight:600;font-size:15px}
+        .edit-item .price{color:var(--gold);font-size:14px;font-weight:700}
+        .edit-btn{padding:8px 14px;background:rgba(255,255,255,0.1);border:none;border-radius:8px;font-size:13px;cursor:pointer;color:#fff}
+        .add-item-btn{width:100%;padding:16px;background:linear-gradient(135deg,var(--primary) 0%,var(--primary-dark) 100%);color:#fff;border:none;border-radius:16px;font-size:15px;font-weight:700;cursor:pointer;box-shadow:0 8px 25px rgba(196,30,58,0.3);transition:all 0.3s}
+        .delete-item-btn{color:var(--primary);background:rgba(196,30,58,0.2);padding:8px 12px;border:none;border-radius:8px;font-size:12px;cursor:pointer;border:1px solid rgba(196,30,58,0.3)}
+        
+        /* Modal */
+        .modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:200;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(5px)}
+        .modal.show{display:flex}
+        .modal-content{background:linear-gradient(145deg,rgba(26,26,46,0.95) 0%,rgba(26,26,46,0.98) 100%);border-radius:20px;width:100%;max-width:400px;max-height:90vh;overflow-y:auto;padding:24px;border:1px solid rgba(255,255,255,0.1);box-shadow:0 20px 60px rgba(0,0,0,0.5)}
+        .modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+        .modal-title{font-size:20px;font-weight:800;color:#fff}
+        .modal-close{background:0;border:0;font-size:28px;cursor:pointer;padding:4px;color:rgba(255,255,255,0.6);transition:all 0.3s}
+        .modal-close:hover{background:var(--primary);transform:rotate(90deg);color:#fff;border-radius:8px}
+        
+        .form-group{margin-bottom:16px}
+        .form-label{font-size:12px;font-weight:700;color:var(--gold);margin-bottom:10px;display:block;text-transform:uppercase;letter-spacing:1px}
+        .form-input{width:100%;padding:14px;font-size:15px;border:2px solid rgba(255,255,255,0.1);border-radius:12px;background:rgba(255,255,255,0.05);color:#fff}
+        .form-input:focus{border-color:var(--gold);outline:0;box-shadow:0 0 0 4px rgba(212,175,55,0.15)}
+        .form-input::placeholder{color:rgba(255,255,255,0.4)}
+        .form-row{display:flex;gap:10px}
+        .form-row .form-group{flex:1}
+        .emoji-picker{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+        .emoji-btn{width:44px;height:44px;font-size:24px;border:2px solid rgba(255,255,255,0.1);border-radius:10px;background:rgba(255,255,255,0.05);cursor:pointer;transition:all 0.3s}
+        .emoji-btn:hover{transform:scale(1.15);border-color:var(--gold);box-shadow:0 0 20px rgba(212,175,55,0.3)}
+        .emoji-btn.selected{border-color:var(--gold);background:rgba(212,175,55,0.2);transform:scale(1.15)}
+        
+        .option-group{margin-bottom:18px}
+        .option-label{font-size:14px;font-weight:700;margin-bottom:10px;color:#fff}
+        .option-row{display:flex;flex-wrap:wrap;gap:8px}
+        .option-btn{padding:10px 16px;border:2px solid rgba(255,255,255,0.1);border-radius:20px;background:rgba(255,255,255,0.05);font-size:13px;cursor:pointer;color:rgba(255,255,255,0.7);transition:all 0.3s}
+        .option-btn:hover{border-color:var(--gold)}
+        .option-btn.selected{border-color:var(--gold);background:linear-gradient(135deg,var(--gold) 0%,#b8962e 100%);color:var(--dark);font-weight:700;box-shadow:0 6px 20px rgba(212,175,55,0.3)}
+        
+        .save-btn{width:100%;padding:18px;background:linear-gradient(135deg,var(--gold) 0%,#b8962e 100%);color:var(--dark);border:none;border-radius:16px;font-size:17px;font-weight:800;cursor:pointer;box-shadow:0 10px 30px rgba(212,175,55,0.4);transition:all 0.3s;letter-spacing:1px}
+        
+        /* Empty */
+        .empty{text-align:center;padding:60px 20px;color:rgba(255,255,255,0.3);font-size:14px}
+        .empty-icon{font-size:60px;margin-bottom:12px}
+        
+        /* Toast */
+        .toast{position:fixed;top:70px;left:50%;transform:translateX(-50%) translateY(-100px);background:rgba(0,0,0,0.9);color:#fff;padding:14px 28px;border-radius:12px;font-size:14px;font-weight:700;z-index:1000;transition:transform .3s;box-shadow:0 10px 30px rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.1)}
+        .toast.show{transform:translateX(-50%) translateY(0)}
+        
+        /* Kitchen Badge */
+        .kitchen-badge{background:var(--gold);color:var(--dark);padding:5px 12px;border-radius:20px;font-size:10px;font-weight:800}
+        
+        /* QR Section */
+        .qr-section{background:linear-gradient(145deg,rgba(212,175,55,0.1) 0%,rgba(212,175,55,0.02) 100%);border:2px solid var(--gold);border-radius:24px;padding:24px;margin:16px;text-align:center}
+        .qr-title{color:var(--gold);font-size:16px;font-weight:800;margin-bottom:12px}
+        .qr-code{width:160px;height:160px;background:#fff;border-radius:16px;margin:0 auto;padding:12px}
+        
+        /* Stats */
+        .stats-card{background:linear-gradient(145deg,rgba(255,255,255,0.08) 0%,rgba(255,255,255,0.02) 100%);border-radius:20px;padding:20px;margin-bottom:14px;border:1px solid rgba(255,255,255,0.08)}
+    </style>
+</head>
+<body>
+    <header class="header">
+        <h1>☕ Drinks Order</h1>
+        <div class="cart-badge" id="cartBadge">0</div>
+    </header>
+    
+    <nav class="tabs">
+        <button class="tab active" data-tab="menu">📋 Menu</button>
+        <button class="tab" data-tab="cart">🛒 Giỏ <span id="tabCartNum">0</span></button>
+        <button class="tab" data-tab="kitchen">🍳 Bếp <span id="kitchenBadge" class="kitchen-badge">0</span></button>
+        <button class="tab" data-tab="stats">💰 Thống Kê</button>
+        <button class="tab" data-tab="settings">⚙️ Cài Đặt</button>
+    </nav>
+    
+    <main class="content">
+        <!-- Menu Tab -->
+        <div class="tab-content active" id="menuContent">
+            <div class="menu-grid" id="menuGrid"></div>
+        </div>
+        
+        <!-- Cart Tab -->
+        <div class="tab-content" id="cartContent">
+            <div id="cartItems" class="cart-items"></div>
+            <div id="cartEmpty" class="empty"><div class="empty-icon">🛒</div>Giỏ hàng trống</div>
+            <div id="cartSummary" class="summary">
+                <div class="summary-row"><span>Tổng món:</span><span id="totalItems">0</span></div>
+                <div class="summary-row"><span>Tổng tiền:</span><span class="summary-total" id="totalPrice">0đ</span></div>
+                <input type="text" class="name-input" id="customerName" placeholder="👤 Tên khách hàng...">
+                <button class="order-btn" id="placeOrderBtn" onclick="placeOrder()">📦 Đặt Hàng Ngay</button>
+            </div>
+        </div>
+        
+        <!-- Kitchen Tab -->
+        <div class="tab-content" id="kitchenContent">
+            <div style="padding:16px">
+                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px">
+                    <button id="kitchenTabMaking" onclick="switchKitchenTab('making')" style="padding:14px;border:2px solid var(--gold);border-radius:14px;background:rgba(212,175,55,0.1);font-weight:700;font-size:13px;cursor:pointer;color:var(--gold)">🍳 Làm <span id="kitchenMakingCount">0</span></button>
+                    <button id="kitchenTabDone" onclick="switchKitchenTab('done')" style="padding:14px;border:2px solid rgba(255,255,255,0.1);border-radius:14px;background:rgba(255,255,255,0.05);font-weight:700;font-size:13px;cursor:pointer;color:rgba(255,255,255,0.5)">✓ Xong <span id="kitchenDoneCount">0</span></button>
+                    <button id="kitchenTabPayment" onclick="switchKitchenTab('payment')" style="padding:14px;border:2px solid rgba(255,255,255,0.1);border-radius:14px;background:rgba(255,255,255,0.05);font-weight:700;font-size:13px;cursor:pointer;color:rgba(255,255,255,0.5)">💰 TT <span id="kitchenUnpaidCount">0</span></button>
+                </div>
+            </div>
+            <div id="kitchenList" style="padding:0 16px"></div>
+        </div>
+        
+        <!-- Stats Tab -->
+        <div class="tab-content" id="statsContent">
+            <div style="padding:18px">
+                <div style="background:linear-gradient(135deg,rgba(212,175,55,0.2) 0%,rgba(212,175,55,0.05) 100%);border-radius:24px;padding:30px;color:#fff;margin-bottom:18px;text-align:center;box-shadow:0 20px 50px rgba(0,0,0,0.3);position:relative;overflow:hidden;border:2px solid var(--gold)">
+                    <div style="position:absolute;top:-40px;right:-40px;width:180px;height:180px;background:rgba(212,175,55,0.1);border-radius:50%"></div>
+                    <div style="position:absolute;bottom:-50px;left:-50px;width:150px;height:150px;background:rgba(212,175,55,0.05);border-radius:50%"></div>
+                    <div style="position:relative">
+                        <div style="font-size:56px;margin-bottom:14px;filter:drop-shadow(0 10px 30px rgba(212,175,55,0.5))">💰</div>
+                        <div style="font-size:11px;text-transform:uppercase;letter-spacing:3px;color:var(--gold);margin-bottom:10px">Doanh Thu Hôm Nay</div>
+                        <div style="font-family:'Playfair Display',serif;font-size:40px;font-weight:900;margin:12px 0;text-shadow:0 4px 20px rgba(212,175,55,0.3);color:var(--gold)" id="todayRevenue">0đ</div>
+                        <div style="background:rgba(212,175,55,0.2);display:inline-block;padding:10px 24px;border-radius:30px;font-size:14px;font-weight:700;border:1px solid rgba(212,175,55,0.3);color:var(--gold)" id="todayOrders">0 đơn</div>
+                    </div>
+                </div>
+                
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:18px">
+                    <div style="background:linear-gradient(145deg,rgba(255,255,255,0.08) 0%,rgba(255,255,255,0.02) 100%);backdrop-filter:blur(10px);border-radius:24px;padding:24px;text-align:center;box-shadow:0 15px 40px rgba(0,0,0,0.3);position:relative;overflow:hidden;border:1px solid rgba(255,255,255,0.08)">
+                        <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--primary),var(--gold))"></div>
+                        <div style="font-size:10px;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:2px;margin-bottom:14px">Tháng Này</div>
+                        <div style="font-family:'Playfair Display',serif;font-size:28px;font-weight:900;color:var(--gold)" id="monthRevenue">0đ</div>
+                    </div>
+                    <div style="background:linear-gradient(145deg,rgba(255,255,255,0.08) 0%,rgba(255,255,255,0.02) 100%);backdrop-filter:blur(10px);border-radius:24px;padding:24px;text-align:center;box-shadow:0 15px 40px rgba(0,0,0,0.3);position:relative;overflow:hidden;border:1px solid rgba(255,255,255,0.08)">
+                        <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--gold),var(--primary))"></div>
+                        <div style="font-size:10px;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:2px;margin-bottom:14px">Tổng Doanh Thu</div>
+                        <div style="font-family:'Playfair Display',serif;font-size:28px;font-weight:900;color:var(--gold)" id="totalRevenue">0đ</div>
+                    </div>
+                </div>
+                
+                <div style="display:flex;gap:14px;margin-bottom:18px">
+                    <button onclick="showStatsByDay()" id="btnDay" style="flex:1;padding:18px;border:2px solid var(--gold);border-radius:16px;background:linear-gradient(135deg,var(--gold) 0%,#b8962e 100%);color:var(--dark);font-weight:800;font-size:14px;box-shadow:0 10px 30px rgba(212,175,55,0.3);text-transform:uppercase;letter-spacing:1px">📅 Theo Ngày</button>
+                    <button onclick="showStatsByMonth()" id="btnMonth" style="flex:1;padding:18px;border:2px solid rgba(255,255,255,0.1);border-radius:16px;background:linear-gradient(145deg,rgba(255,255,255,0.08) 0%,rgba(255,255,255,0.02) 100%);color:rgba(255,255,255,0.5);font-weight:800;font-size:14px;text-transform:uppercase;letter-spacing:1px">📆 Theo Tháng</button>
+                </div>
+                
+                <div id="statsList"></div>
+            </div>
+        </div>
+        
+        <!-- Settings Tab -->
+        <div class="tab-content" id="settingsContent">
+            <div class="settings">
+                <div class="qr-section">
+                    <div class="qr-title">✨ Quét QR Thanh Toán</div>
+                    <div class="qr-code" id="qrCodeBox">
+                        <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+                            <rect fill="#fff" width="200" height="200"/>
+                            <rect fill="#1a1a2e" x="20" y="20" width="40" height="40" rx="4"/>
+                            <rect fill="#1a1a2e" x="140" y="20" width="40" height="40" rx="4"/>
+                            <rect fill="#1a1a2e" x="20" y="140" width="40" height="40" rx="4"/>
+                            <rect fill="#1a1a2e" x="30" y="30" width="20" height="20" rx="2"/>
+                            <rect fill="#fff" x="35" y="35" width="10" height="10" rx="1"/>
+                            <rect fill="#1a1a2e" x="150" y="30" width="20" height="20" rx="2"/>
+                            <rect fill="#fff" x="155" y="35" width="10" height="10" rx="1"/>
+                            <rect fill="#1a1a2e" x="30" y="150" width="20" height="20" rx="2"/>
+                            <rect fill="#fff" x="35" y="155" width="10" height="10" rx="1"/>
+                        </svg>
+                    </div>
+                </div>
+                <div class="setting-section">
+                    <div class="setting-title">📋 Danh Sách Món</div>
+                    <div id="editList"></div>
+                    <button class="add-item-btn" onclick="openAddModal()">➕ Thêm Món Mới</button>
+                </div>
+                <div class="setting-section">
+                    <div class="setting-title">🧊 Tùy Chọn Mặc Định</div>
+                    <div class="option-group">
+                        <div class="option-label">Đường:</div>
+                        <div class="option-row" id="defaultSugar">
+                            <button class="option-btn" data-val="100">100%</button>
+                            <button class="option-btn selected" data-val="70">70%</button>
+                            <button class="option-btn" data-val="50">50%</button>
+                            <button class="option-btn" data-val="30">30%</button>
+                            <button class="option-btn" data-val="0">0%</button>
+                        </div>
+                    </div>
+                    <div class="option-group">
+                        <div class="option-label">Đá:</div>
+                        <div class="option-row" id="defaultIce">
+                            <button class="option-btn selected" data-val="full">Nhiều đá</button>
+                            <button class="option-btn" data-val="normal">Bình thường</button>
+                            <button class="option-btn" data-val="less">Ít đá</button>
+                            <button class="option-btn" data-val="none">Không đá</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="setting-section">
+                    <div class="setting-title">🏪 Thông Tin Quán</div>
+                    <div class="form-group">
+                        <div class="form-label">Tên quán:</div>
+                        <input type="text" class="form-input" id="shopName" placeholder="Drinks Order" onchange="saveShopInfo()">
+                    </div>
+                    <div class="form-group">
+                        <div class="form-label">Địa chỉ / SĐT:</div>
+                        <input type="text" class="form-input" id="shopInfo" placeholder="123 Đường ABC, TP.HCM" onchange="saveShopInfo()">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+    
+    <!-- Item Modal -->
+    <div class="modal" id="itemModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title" id="modalTitle">Thêm Món</div>
+                <button class="modal-close" onclick="closeModal()">×</button>
+            </div>
+            <div class="form-group">
+                <div class="form-label">Icon:</div>
+                <input type="text" class="form-input" id="itemEmoji" placeholder="☕" maxlength="2">
+                <div class="emoji-picker" id="emojiPicker"></div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <div class="form-label">Tên món:</div>
+                    <input type="text" class="form-input" id="itemName" placeholder="Cà Phê Sữa">
+                </div>
+                <div class="form-group">
+                    <div class="form-label">Giá (đ):</div>
+                    <input type="number" class="form-input" id="itemPrice" placeholder="25000">
+                </div>
+            </div>
+            <div class="form-group">
+                <div class="option-label">Size (phụ thu):</div>
+                <div class="form-row">
+                    <div class="form-group" style="flex:1">
+                        <div class="form-label" style="font-size:11px">Size S</div>
+                        <input type="number" class="form-input" id="itemSizeS" value="0" style="padding:8px;font-size:13px">
+                    </div>
+                    <div class="form-group" style="flex:1">
+                        <div class="form-label" style="font-size:11px">Size M (+)</div>
+                        <input type="number" class="form-input" id="itemSizeM" value="5000" placeholder="+5000" style="padding:8px;font-size:13px">
+                    </div>
+                    <div class="form-group" style="flex:1">
+                        <div class="form-label" style="font-size:11px">Size L (+)</div>
+                        <input type="number" class="form-input" id="itemSizeL" value="10000" placeholder="+10000" style="padding:8px;font-size:13px">
+                    </div>
+                </div>
+            </div>
+            <button class="save-btn" id="modalSaveBtn" onclick="saveItem()">💾 Lưu</button>
+        </div>
+    </div>
+    
+    <!-- Options Modal for Cart -->
+    <div class="modal" id="optionsModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title" id="optionsTitle">Chọn tùy chọn</div>
+                <button class="modal-close" onclick="closeOptionsModal()">×</button>
+            </div>
+            <div id="optionsContent"></div>
+            <button class="save-btn" onclick="confirmAddToCart()">✅ Xác nhận</button>
+        </div>
+    </div>
+    
+    <div class="toast" id="toast"></div>
+    <button id="enableSoundBtn" onclick="enableSound()" style="position:fixed;bottom:20px;left:20px;padding:12px 20px;background:#2196f3;border:none;color:#fff;border-radius:30px;font-size:14px;font-weight:600;z-index:100;box-shadow:0 4px 15px rgba(0,0,0,.3);display:none">🔔 Bật thông báo</button>
+    
+    <script>
+        const EMOJIS = ['☕','🧊','🍵','🥛','🍋','🍊','🥑','🍎','🍓','🍇','🥤','🧃','🍹','🧋','🍦','🍰','🍪','🥜','🍫','🍮'];
+        
+        let menu = JSON.parse(localStorage.getItem('drinks_menu')) || null;
+        let cart = JSON.parse(localStorage.getItem('drinks_cart')) || [];
+        let orders = [];
+        let settings = JSON.parse(localStorage.getItem('drinks_settings')) || {sugar:'70', ice:'full'};
+        let useCloud = false;
+        let soundUnlocked = false;
+        let isPlacingOrder = false;
+        let ordersChannel = null;
+        let orderItemsChannel = null;
+                
+        let editingId = null;
+        let pendingItem = null;
+        let modalQty = 1;
+        let kitchenTab = 'making';
+        
+        const DEFAULT_MENU = [
+            {id:1,name:'Cà Phê Đen',price:20000,emoji:'☕'},
+            {id:2,name:'Cà Phê Sữa',price:25000,emoji:'🥛'},
+            {id:3,name:'Bạc Xỉu',price:30000,emoji:'🍵'},
+            {id:4,name:'Trà Đá',price:10000,emoji:'🧊'},
+            {id:5,name:'Trà Chanh',price:18000,emoji:'🍋'},
+            {id:6,name:'Sinh Tố Bơ',price:30000,emoji:'🥑'},
+            {id:7,name:'Nước Cam',price:22000,emoji:'🍊'},
+            {id:8,name:'Sữa Tươi',price:15000,emoji:'🥛'},
+            {id:9,name:'Cacao',price:25000,emoji:'🍫'},
+            {id:10,name:'Matcha',price:35000,emoji:'🍵'},
+            {id:11,name:'Kem Vien',price:25000,emoji:'🍦'},
+            {id:12,name:'Bánh Flan',price:15000,emoji:'🍮'}
+        ];
+        
+        if (!menu) {
+            menu = DEFAULT_MENU;
+            localStorage.setItem('drinks_menu', JSON.stringify(menu));
+        }
+        
+        function fmt(n) {return Number(n || 0).toLocaleString('vi') + 'đ'}
+        
+        function renderMenu() {
+            document.getElementById('menuGrid').innerHTML = menu.map(m => `
+                <div class="menu-item">
+                    <div class="emoji">${m.emoji}</div>
+                    <div class="name">${m.name}</div>
+                    <div class="price">${fmt(m.price)}</div>
+                    <button class="add-btn" onclick="showOptions(${m.id})">+ Thêm</button>
+                </div>
+            `).join('');
+        }
+        
+        function renderEditList() {
+            document.getElementById('editList').innerHTML = menu.map(m => {
+                const sizes = [];
+                if (m.sizePrice?.M > 0) sizes.push(`M+${fmt(m.sizePrice.M)}`);
+                if (m.sizePrice?.L > 0) sizes.push(`L+${fmt(m.sizePrice.L)}`);
+                return `<div class="edit-item">
+                    <div class="emoji">${m.emoji}</div>
+                    <div class="info">
+                        <div class="name">${m.name}</div>
+                        <div class="price">${fmt(m.price)}${sizes.length ? ' | ' + sizes.join(', ') : ''}</div>
+                    </div>
+                    <button class="edit-btn" onclick="openEditModal(${m.id})">✏️</button>
+                    <button class="delete-item-btn" onclick="deleteItem(${m.id})">🗑️</button>
+                </div>`;
+            }).join('');
+        }
+        
+        function showOptions(id) {
+            const item = menu.find(m => m.id === id);
+            pendingItem = {...item, size: 'S', sugar: settings.sugar, ice: settings.ice};
+            modalQty = 1;
+            document.getElementById('modalQty')?.remove();
+            const basePrice = item.price;
+            
+            document.getElementById('optionsTitle').innerHTML = `${item.emoji} ${item.name}<br><span style="font-size:14px;color:var(--gold)" id="optPriceDisplay">${fmt(basePrice)}</span>`;
+            document.getElementById('optionsContent').innerHTML = `
+                <div style="display:flex;align-items:center;justify-content:center;gap:16px;margin-bottom:20px">
+                    <button onclick="changeModalQty(-1)" style="width:48px;height:48px;border:2px solid var(--gold);border-radius:12px;background:0;color:var(--gold);font-size:24px;font-weight:700;cursor:pointer">−</button>
+                    <span id="modalQty" style="font-size:32px;font-weight:800;color:var(--gold);min-width:60px;text-align:center">1</span>
+                    <button onclick="changeModalQty(1)" style="width:48px;height:48px;border:2px solid var(--gold);border-radius:12px;background:0;color:var(--gold);font-size:24px;font-weight:700;cursor:pointer">+</button>
+                </div>
+                <div class="option-group">
+                    <div class="option-label">Đường:</div>
+                    <div class="option-row" id="optSugar">
+                        <button class="option-btn ${settings.sugar==='100'?'selected':''}" data-val="100">100%</button>
+                        <button class="option-btn ${settings.sugar==='70'?'selected':''}" data-val="70">70%</button>
+                        <button class="option-btn ${settings.sugar==='50'?'selected':''}" data-val="50">50%</button>
+                        <button class="option-btn ${settings.sugar==='30'?'selected':''}" data-val="30">30%</button>
+                        <button class="option-btn ${settings.sugar==='0'?'selected':''}" data-val="0">0%</button>
+                    </div>
+                </div>
+                <div class="option-group">
+                    <div class="option-label">Đá:</div>
+                    <div class="option-row" id="optIce">
+                        <button class="option-btn ${settings.ice==='full'?'selected':''}" data-val="full">Nhiều</button>
+                        <button class="option-btn ${settings.ice==='normal'?'selected':''}" data-val="normal">Bình thường</button>
+                        <button class="option-btn ${settings.ice==='less'?'selected':''}" data-val="less">Ít</button>
+                        <button class="option-btn ${settings.ice==='none'?'selected':''}" data-val="none">Không</button>
+                    </div>
+                </div>
+                <div class="option-group">
+                    <div class="option-label">Size (phụ thu):</div>
+                    <div class="option-row" id="optSize">
+                        <button class="option-btn selected" data-val="S" data-price="${item.sizePrice?.S || 0}">S ${(item.sizePrice?.S || 0) > 0 ? '(+' + fmt(item.sizePrice.S) + ')' : '(base)'}</button>
+                        <button class="option-btn" data-val="M" data-price="${item.sizePrice?.M || 5000}">M (+${fmt(item.sizePrice?.M || 5000)})</button>
+                        <button class="option-btn" data-val="L" data-price="${item.sizePrice?.L || 10000}">L (+${fmt(item.sizePrice?.L || 10000)})</button>
+                    </div>
+                </div>
+            `;
+            bindOptionBtns('optSugar', v => pendingItem.sugar = v);
+            bindOptionBtns('optIce', v => pendingItem.ice = v);
+            bindOptionBtns('optSize', v => {
+                pendingItem.size = v;
+                const extraPrice = parseInt(document.querySelector('#optSize .selected')?.dataset.price) || 0;
+                document.getElementById('optPriceDisplay').textContent = fmt(basePrice + extraPrice);
+            });
+            document.getElementById('optionsModal').classList.add('show');
+        }
+        
+        function changeModalQty(delta) {
+            modalQty += delta;
+            if (modalQty < 1) modalQty = 1;
+            if (modalQty > 99) modalQty = 99;
+            document.getElementById('modalQty').textContent = modalQty;
+        }
+        
+        function bindOptionBtns(groupId, callback) {
+            document.getElementById(groupId).querySelectorAll('.option-btn').forEach(btn => {
+                btn.onclick = () => {
+                    document.getElementById(groupId).querySelectorAll('.option-btn').forEach(b => b.classList.remove('selected'));
+                    btn.classList.add('selected');
+                    callback(btn.dataset.val);
+                };
+            });
+        }
+        
+        function confirmAddToCart() {
+            const exist = cart.find(c => c.id === pendingItem.id && c.sugar === pendingItem.sugar && c.ice === pendingItem.ice && c.size === pendingItem.size);
+            const sizePrices = pendingItem.sizePrice || {S:0, M:5000, L:10000};
+            const sizePrice = sizePrices[pendingItem.size] || 0;
+            if (exist) {
+                exist.qty += modalQty;
+            } else {
+                cart.push({...pendingItem, qty: modalQty, price: pendingItem.price + sizePrice});
+            }
+            saveCart();
+            updateBadge();
+            closeOptionsModal();
+            showToast(`Đã thêm ${modalQty} ${pendingItem.name}`);
+        }
+        
+        function closeOptionsModal() {
+            document.getElementById('optionsModal').classList.remove('show');
+        }
+        
+        function saveCart() {localStorage.setItem('drinks_cart', JSON.stringify(cart))}
+        
+        function updateBadge() {
+            const n = cart.reduce((s,i) => s + i.qty, 0);
+            document.getElementById('cartBadge').textContent = n;
+            document.getElementById('tabCartNum').textContent = n;
+        }
+        
+        function renderCart() {
+            const items = document.getElementById('cartItems');
+            const empty = document.getElementById('cartEmpty');
+            const summary = document.getElementById('cartSummary');
+            
+            if (!cart.length) {
+                items.innerHTML = '';
+                empty.style.display = 'block';
+                summary.style.display = 'none';
+                return;
+            }
+            
+            empty.style.display = 'none';
+            summary.style.display = 'block';
+            
+            const sugarText = s => ({100:'100% đường',70:'70% đường',50:'50% đường',30:'30% đường',0:'0% đường'})[s] || '';
+            const iceText = ice => ({full:'Nhiều đá',normal:'Bình thường',less:'Ít đá',none:'Không đá'})[ice] || '';
+            
+            items.innerHTML = cart.map((c,i) => `
+                <div class="cart-item">
+                    <div class="cart-item-top">
+                        <div class="emoji">${c.emoji}</div>
+                        <div class="info">
+                            <div class="name">${c.name} (${c.size})</div>
+                            <div class="price">${fmt(c.price)}</div>
+                        </div>
+                        <div class="qty-control">
+                            <button class="qty-btn" onclick="changeQty(${i},-1)">−</button>
+                            <span class="qty-num">${c.qty}</span>
+                            <button class="qty-btn" onclick="changeQty(${i},1)">+</button>
+                        </div>
+                        <button class="remove-btn" onclick="removeItem(${i})">✕</button>
+                    </div>
+                    <div class="cart-options">${sugarText(c.sugar)} • ${iceText(c.ice)}</div>
+                </div>
+            `).join('');
+            
+            const totalItems = cart.reduce((s,i) => s + i.qty, 0);
+            const totalPrice = cart.reduce((s,i) => s + i.price * i.qty, 0);
+            document.getElementById('totalItems').textContent = totalItems;
+            document.getElementById('totalPrice').textContent = fmt(totalPrice);
+        }
+        
+        function changeQty(idx, delta) {
+            cart[idx].qty += delta;
+            if (cart[idx].qty < 1) cart.splice(idx, 1);
+            saveCart();
+            updateBadge();
+            renderCart();
+        }
+        
+        function removeItem(idx) {
+            cart.splice(idx, 1);
+            saveCart();
+            updateBadge();
+            renderCart();
+        }
+        
+        async function placeOrder() {
+            if (isPlacingOrder) return;
+            const name = document.getElementById('customerName').value.trim();
+            if (!name) {showToast('Nhập tên khách!', true);return;}
+            if (!cart.length) {showToast('Giỏ trống!', true);return;}
+            
+            const placeOrderBtn = document.getElementById('placeOrderBtn');
+            isPlacingOrder = true;
+            if (placeOrderBtn) {
+                placeOrderBtn.disabled = true;
+                placeOrderBtn.textContent = '⏳ Đang gửi...';
+                placeOrderBtn.style.opacity = '0.7';
+                placeOrderBtn.style.cursor = 'not-allowed';
+            }
+            
+            try {
+                if (useCloud) {
+                    const items = cart.map(i => ({name:`${i.name} (${i.size})`, qty:i.qty, price:i.price, note:`Đường ${i.sugar}% • ${i.ice === 'full' ? 'Nhiều đá' : i.ice === 'normal' ? 'Bình thường' : i.ice === 'less' ? 'Ít đá' : 'Không đá'}`}));
+                    await createOrder(name, items);
+                    orders = await getMappedOrders();
+                    localStorage.setItem('drinks_orders', JSON.stringify(orders));
+                    cart = [];
+                    document.getElementById('customerName').value = '';
+                    saveCart();
+                    updateBadge();
+                    renderCart();
+                    renderKitchen();
+                    renderStats();
+                    switchTab('kitchen');
+                    showToast('Đặt hàng thành công!');
+                    return;
+                }
+                
+                const total = cart.reduce((s,i) => s + i.price * i.qty, 0);
+                const newOrder = {
+                    id: Date.now(),
+                    customer: name,
+                    items: cart.map(i => ({n:i.name, q:i.qty, p:i.price, s:i.sugar, ice:i.ice, sz:i.size})),
+                    total,
+                    status: 0,
+                    paid: false,
+                    time: new Date().toLocaleString('vi-VN',{year:'numeric',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}),
+                    updatedAt: Date.now()
+                };
+                
+                orders.unshift(newOrder);
+                localStorage.setItem('drinks_orders', JSON.stringify(orders));
+                
+                try {
+                    const channel = new BroadcastChannel('drinks_orders');
+                    channel.postMessage({type:'new_order', customer: name, items:cart.map(i=>`${i.qty} ${i.name}`).join(', ')});
+                    channel.close();
+                } catch(e) {}
+                
+                cart = [];
+                document.getElementById('customerName').value = '';
+                saveCart();
+                updateBadge();
+                renderCart();
+                renderKitchen();
+                renderStats();
+                switchTab('kitchen');
+                showToast('Đặt hàng thành công!');
+            } catch(e) {
+                showToast('Lỗi đặt hàng: ' + e.message, true);
+            } finally {
+                isPlacingOrder = false;
+                if (placeOrderBtn) {
+                    placeOrderBtn.disabled = false;
+                    placeOrderBtn.textContent = '📦 Đặt Hàng Ngay';
+                    placeOrderBtn.style.opacity = '';
+                    placeOrderBtn.style.cursor = '';
+                }
+            }
+        }
+        
+        function speakOrder(text) {
+            if (!soundUnlocked) return;
+            if ('speechSynthesis' in window) {
+                speechSynthesis.cancel();
+                const utter = new SpeechSynthesisUtterance(text);
+                utter.lang = 'vi-VN';
+                utter.rate = 0.9;
+                utter.pitch = 1.3;
+                const voices = speechSynthesis.getVoices();
+                let voice = voices.find(v => v.lang.includes('vi') && (v.name.includes('Female') || v.name.includes('female')));
+                if (!voice) voice = voices.find(v => v.lang.includes('vi'));
+                if (!voice) voice = voices.find(v => v.name.includes('Google') && v.lang.includes('vi'));
+                if (voice) utter.voice = voice;
+                speechSynthesis.speak(utter);
+            }
+        }
+        
+        function enableSound() {
+            soundUnlocked = true;
+            document.getElementById('enableSoundBtn').style.display = 'none';
+            showToast('Đã bật thông báo!');
+        }
+        
+        document.getElementById('enableSoundBtn').style.display = 'block';
+        
+        function listenForOrders() {
+            try {
+                const channel = new BroadcastChannel('drinks_orders');
+                channel.onmessage = (e) => {
+                    if (e.data?.type === 'new_order') {
+                        orders = JSON.parse(localStorage.getItem('drinks_orders')) || [];
+                        renderKitchen();
+                        renderStats();
+                        showToast('📦 Có đơn mới!');
+                        speakOrder(`Đơn mới. Khách hàng ${e.data.customer}. ${e.data.items}`);
+                    }
+                };
+            } catch(e) {}
+            
+            setInterval(() => {
+                const stored = localStorage.getItem('drinks_orders');
+                if (stored) {
+                    const storedOrders = JSON.parse(stored);
+                    if (JSON.stringify(storedOrders) !== JSON.stringify(orders)) {
+                        orders = storedOrders;
+                        renderKitchen();
+                        renderStats();
+                    }
+                }
+            }, 3000);
+        }
+        
+        function switchTab(tab) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            document.querySelector(`[data-tab="${tab}"]`).classList.add('active');
+            document.getElementById(tab + 'Content').classList.add('active');
+            if (tab === 'cart') renderCart();
+            if (tab === 'kitchen') renderKitchen();
+            if (tab === 'stats') renderStats();
+            if (tab === 'settings') renderEditList();
+        }
+        
+        function switchKitchenTab(tab) {
+            kitchenTab = tab;
+            renderKitchen();
+        }
+        
+        function renderKitchen() {
+            const making = orders.filter(o => o.status === 0);
+            const unpaid = orders.filter(o => o.status === 1 && !o.paid);
+            const paid = orders.filter(o => o.status === 1 && o.paid);
+            const done = paid.filter(o => Date.now() - (o.updatedAt || 0) < 5 * 60 * 1000);
+            
+            document.getElementById('kitchenBadge').textContent = making.length;
+            document.getElementById('kitchenMakingCount').textContent = making.length;
+            document.getElementById('kitchenDoneCount').textContent = done.length;
+            document.getElementById('kitchenUnpaidCount').textContent = unpaid.length;
+            
+            const btnMaking = document.getElementById('kitchenTabMaking');
+            const btnDone = document.getElementById('kitchenTabDone');
+            const btnPayment = document.getElementById('kitchenTabPayment');
+            btnMaking.style.background = kitchenTab === 'making' ? 'rgba(212,175,55,0.15)' : 'rgba(255,255,255,0.05)';
+            btnMaking.style.borderColor = kitchenTab === 'making' ? 'var(--gold)' : 'rgba(255,255,255,0.1)';
+            btnMaking.style.color = kitchenTab === 'making' ? 'var(--gold)' : 'rgba(255,255,255,0.5)';
+            btnDone.style.background = kitchenTab === 'done' ? 'rgba(76,175,80,0.15)' : 'rgba(255,255,255,0.05)';
+            btnDone.style.borderColor = kitchenTab === 'done' ? '#4caf50' : 'rgba(255,255,255,0.1)';
+            btnDone.style.color = kitchenTab === 'done' ? '#4caf50' : 'rgba(255,255,255,0.5)';
+            btnPayment.style.background = kitchenTab === 'payment' ? 'rgba(196,30,58,0.15)' : 'rgba(255,255,255,0.05)';
+            btnPayment.style.borderColor = kitchenTab === 'payment' ? 'var(--primary)' : 'rgba(255,255,255,0.1)';
+            btnPayment.style.color = kitchenTab === 'payment' ? 'var(--primary)' : 'rgba(255,255,255,0.5)';
+            
+            const list = document.getElementById('kitchenList');
+            const sugarTxt = s => ({100:'100%',70:'70%',50:'50%',30:'30%',0:'0%'})[s] || '';
+            const iceTxt = ice => ({full:'Nhiều đá',normal:'BT',less:'Ít đá',none:'Ko đá'})[ice] || '';
+            
+            if (kitchenTab === 'making') {
+                list.innerHTML = making.length ? 
+                    making.map((o, i) => {
+                        const realIdx = orders.findIndex(x => x.id === o.id);
+                        const itemsText = o.items.map(x => {
+                            let text = `${x.q} ${x.n}`;
+                            if (x.sz) text += ` size ${x.sz}`;
+                            text += ` đường ${x.s || '70'} phần trăm`;
+                            text += ` đá ${iceTxt(x.ice)}`;
+                            return text;
+                        }).join('. ');
+                        const fullText = `Khách hàng ${o.customer}. ${itemsText}`;
+                        return `<div style="background:linear-gradient(145deg,rgba(255,152,0,0.1) 0%,rgba(255,152,0,0.02) 100%);border-radius:16px;padding:18px;margin-bottom:12px;border:2px solid rgba(255,152,0,0.3);box-shadow:0 10px 30px rgba(0,0,0,0.3)">
+                            <div style="display:flex;justify-content:space-between;align-items:center">
+                                <div>
+                                    <div style="font-weight:800;font-size:20px;color:var(--gold)">👤 ${o.customer}</div>
+                                </div>
+                                <button onclick="speakOrder('${fullText.replace(/'/g, "\\'")}')" style="background:linear-gradient(135deg,#9c27b0 0%,#7b1fa2 100%);color:#fff;border:none;padding:12px 16px;border-radius:10px;font-size:18px;cursor:pointer;box-shadow:0 6px 20px rgba(156,39,176,0.3)">🔊</button>
+                            </div>
+                            <div style="color:rgba(255,255,255,0.4);font-size:12px;margin-bottom:12px;margin-top:8px">${o.time}</div>
+                            ${o.items.map(x => `<div style="margin:10px 0;padding:10px 0;border-bottom:1px dashed rgba(255,255,255,0.1)"><span style="font-weight:900;font-size:28px;color:#ff6b35">${x.q}×</span> <span style="font-weight:900;font-size:26px;color:#fff">${x.n}</span> <span style="color:var(--gold);font-size:14px">(${x.sz})</span> <span style="color:rgba(255,255,255,0.5);font-size:14px">${sugarTxt(x.s)} • ${iceTxt(x.ice)}</span></div>`).join('')}
+                            <button onclick="toggleStatus(${realIdx})" style="background:linear-gradient(135deg,#00b894 0%,#00a383 100%);color:#fff;border:none;padding:14px 20px;border-radius:12px;font-size:15px;font-weight:800;cursor:pointer;margin-top:14px;width:100%;box-shadow:0 8px 25px rgba(0,184,148,0.3)">✓ HOÀN THÀNH</button>
+                        </div>`;
+                    }).join('') :
+                    `<div style="text-align:center;padding:60px;color:rgba(255,255,255,0.3)">✨ Không có đơn nào đang làm</div>`;
+            } else if (kitchenTab === 'done') {
+                list.innerHTML = done.length ? 
+                    done.map(o => `<div style="background:linear-gradient(145deg,rgba(76,175,80,0.1) 0%,rgba(76,175,80,0.02) 100%);border-radius:14px;padding:16px;margin-bottom:10px;border:1px solid rgba(76,175,80,0.2)">
+                        <div style="display:flex;justify-content:space-between;align-items:center">
+                            <span style="font-weight:700;color:var(--gold)">👤 ${o.customer}</span>
+                            <span style="color:#4caf50;font-size:20px">✓</span>
+                        </div>
+                        <div style="color:rgba(255,255,255,0.5);font-size:13px;margin-top:8px">${o.items.map(x=>x.n).join(', ')}</div>
+                    </div>`).join('') :
+                    `<div style="text-align:center;padding:60px;color:rgba(255,255,255,0.3)">✨ Không có đơn nào hoàn thành</div>`;
+            } else {
+                const unpaidOrders = unpaid.length ? unpaid : paid.slice(0, 10);
+                list.innerHTML = unpaidOrders.length ? 
+                    unpaidOrders.map(o => {
+                        const realIdx = orders.findIndex(x => x.id === o.id);
+                        return `<div style="background:${o.paid ? 'linear-gradient(145deg,rgba(76,175,80,0.1) 0%,rgba(76,175,80,0.02) 100%)' : 'linear-gradient(145deg,rgba(196,30,58,0.1) 0%,rgba(196,30,58,0.02) 100%)'};border-radius:16px;padding:18px;margin-bottom:12px;border:2px solid ${o.paid ? 'rgba(76,175,80,0.3)' : 'rgba(196,30,58,0.3)'};box-shadow:0 10px 30px rgba(0,0,0,0.3)">
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+                            <div>
+                                <div style="font-weight:800;font-size:22px;color:${o.paid ? '#4caf50' : 'var(--gold)'}">👤 ${o.customer}</div>
+                                <div style="font-size:12px;color:rgba(255,255,255,0.4);margin-top:4px">${o.time}</div>
+                            </div>
+                            <div style="text-align:right">
+                                <div style="font-weight:900;font-size:20px;color:var(--gold)">${fmt(o.total)}</div>
+                                <div style="font-size:12px;color:${o.paid ? '#4caf50' : 'var(--primary)'}">${o.paid ? '✓ ĐÃ TT' : '⏳ CHƯA TT'}</div>
+                            </div>
+                        </div>
+                        <div style="color:rgba(255,255,255,0.6);font-size:14px;margin-bottom:14px">${o.items.map(x=>`${x.q}× ${x.n}`).join(', ')}</div>
+                        ${!o.paid ? `<button onclick="markPaid(${realIdx})" style="background:linear-gradient(135deg,#00b894 0%,#00a383 100%);color:#fff;border:none;padding:14px 20px;border-radius:12px;font-size:15px;font-weight:800;cursor:pointer;width:100%;box-shadow:0 8px 25px rgba(0,184,148,0.3)">✓ XÁC NHẬN ĐÃ THANH TOÁN</button>` : `<div style="text-align:center;padding:12px;background:rgba(76,175,80,0.2);border-radius:10px;color:#4caf50;font-weight:700;font-size:14px">✓ ĐÃ THANH TOÁN</div>`}
+                    </div>`;
+                    }).join('') :
+                    `<div style="text-align:center;padding:60px;color:rgba(255,255,255,0.3)">✨ Tất cả đơn đã thanh toán!</div>`;
+            }
+        }
+        
+        async function toggleStatus(i) {
+            const nextStatus = orders[i].status ? 0 : 1;
+            if (useCloud) {
+                try {
+                    await updateOrderStatus(orders[i].id, nextStatus);
+                    orders = await getMappedOrders();
+                } catch(e) { showToast('Lỗi: ' + e.message, true); return; }
+            } else {
+                orders[i].status = nextStatus;
+                orders[i].updatedAt = Date.now();
+                localStorage.setItem('drinks_orders', JSON.stringify(orders));
+            }
+            if (nextStatus === 1) kitchenTab = 'payment';
+            renderKitchen();
+            renderStats();
+        }
+        
+        async function markPaid(idx) {
+            if (useCloud) {
+                try {
+                    await updateOrderPaid(orders[idx].id, true);
+                    orders = await getMappedOrders();
+                } catch(e) { showToast('Lỗi: ' + e.message, true); return; }
+            } else {
+                orders[idx].paid = true;
+                orders[idx].updatedAt = Date.now();
+                localStorage.setItem('drinks_orders', JSON.stringify(orders));
+            }
+            renderKitchen();
+            renderStats();
+            showToast('Đã xác nhận thanh toán!');
+        }
+        
+        async function deleteOrderAtIndex(i) {
+            if (useCloud) {
+                try {
+                    await deleteOrderFnCloud(orders[i].id);
+                    orders = await getMappedOrders();
+                } catch(e) { showToast('Lỗi: ' + e.message, true); return; }
+            } else {
+                orders.splice(i, 1);
+                localStorage.setItem('drinks_orders', JSON.stringify(orders));
+            }
+            renderKitchen();
+            renderStats();
+        }
+        
+        async function clearAllOrders() {
+            if (!orders.length) return;
+            if (!confirm('Xóa tất cả đơn?')) return;
+            if (useCloud) {
+                try {
+                    for (const o of orders) await deleteOrderFnCloud(o.id);
+                    orders = await getMappedOrders();
+                } catch(e) { showToast('Lỗi: ' + e.message, true); return; }
+            } else {
+                orders = [];
+                localStorage.setItem('drinks_orders', JSON.stringify(orders));
+            }
+            renderKitchen();
+            renderStats();
+        }
+        
+        let statsView = 'day';
+        
+        function showStatsByDay() {
+            statsView = 'day';
+            document.getElementById('btnDay').style.background = 'linear-gradient(135deg,var(--gold) 0%,#b8962e 100%)';
+            document.getElementById('btnDay').style.color = 'var(--dark)';
+            document.getElementById('btnMonth').style.background = 'linear-gradient(145deg,rgba(255,255,255,0.08) 0%,rgba(255,255,255,0.02) 100%)';
+            document.getElementById('btnMonth').style.color = 'rgba(255,255,255,0.5)';
+            renderStats();
+        }
+        
+        function showStatsByMonth() {
+            statsView = 'month';
+            document.getElementById('btnMonth').style.background = 'linear-gradient(135deg,var(--gold) 0%,#b8962e 100%)';
+            document.getElementById('btnMonth').style.color = 'var(--dark)';
+            document.getElementById('btnDay').style.background = 'linear-gradient(145deg,rgba(255,255,255,0.08) 0%,rgba(255,255,255,0.02) 100%)';
+            document.getElementById('btnDay').style.color = 'rgba(255,255,255,0.5)';
+            renderStats();
+        }
+        
+        function renderStats() {
+            const completedOrders = orders.filter(o => o.status === 1);
+            const today = new Date();
+            const todayStr = `${today.getDate().toString().padStart(2,'0')}/${(today.getMonth()+1).toString().padStart(2,'0')}`;
+            const thisMonth = `${(today.getMonth()+1).toString().padStart(2,'0')}/${today.getFullYear()}`;
+            
+            let todayOrders = completedOrders.filter(o => o.time.includes(todayStr));
+            let monthOrders = completedOrders.filter(o => {
+                const parts = o.time.split('/');
+                if (parts.length >= 3) {
+                    const monthStr = parts[1].slice(-2) + '/' + parts[2].split(' ')[0].split(',')[0];
+                    return monthStr === thisMonth;
+                }
+                const fallbackMonth = o.time.split('/')[1]?.split(' ')[0]?.split(',')[0]?.replace(/[^0-9]/g, '');
+                return fallbackMonth === thisMonth.split('/')[0];
+            });
+            
+            const todayTotal = todayOrders.reduce((s,o) => s + o.total, 0);
+            const monthTotal = monthOrders.reduce((s,o) => s + o.total, 0);
+            const allTotal = completedOrders.reduce((s,o) => s + o.total, 0);
+            
+            document.getElementById('todayRevenue').textContent = fmt(todayTotal);
+            document.getElementById('todayOrders').textContent = todayOrders.length + ' đơn';
+            document.getElementById('monthRevenue').textContent = fmt(monthTotal);
+            document.getElementById('totalRevenue').textContent = fmt(allTotal);
+            
+            const list = document.getElementById('statsList');
+            
+            if (statsView === 'day') {
+                const byDay = {};
+                completedOrders.forEach(o => {
+                    const d = o.time.split(' ')[0];
+                    if (!byDay[d]) byDay[d] = {count:0, total:0, items:{}};
+                    byDay[d].count++;
+                    byDay[d].total += o.total;
+                    o.items.forEach(i => {
+                        if (!byDay[d].items[i.n]) byDay[d].items[i.n] = 0;
+                        byDay[d].items[i.n] += i.q;
+                    });
+                });
+                
+                const sortedDays = Object.keys(byDay).sort((a,b) => {
+                    const [d1,m1,y1] = a.split('/');
+                    const [d2,m2,y2] = b.split('/');
+                    return new Date(y2,m2-1,d2) - new Date(y1,m1-1,d1);
+                });
+                
+                list.innerHTML = '<div style="font-weight:700;color:var(--gold);margin-bottom:12px;letter-spacing:1px">📅 Theo Ngày</div>' +
+                    sortedDays.map(d => {
+                        const topItems = Object.entries(byDay[d].items).sort((a,b) => b[1]-a[1]).slice(0,3);
+                        return `<div style="background:linear-gradient(145deg,rgba(255,255,255,0.05) 0%,rgba(255,255,255,0.02) 100%);border-radius:14px;padding:16px;margin-bottom:10px;box-shadow:0 8px 25px rgba(0,0,0,0.2);border:1px solid rgba(255,255,255,0.08)">
+                            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+                                <span style="font-weight:700;color:#fff">${d}</span>
+                                <span style="color:var(--gold);font-weight:800">${fmt(byDay[d].total)}</span>
+                            </div>
+                            <div style="font-size:12px;color:rgba(255,255,255,0.4)">${byDay[d].count} đơn</div>
+                            <div style="margin-top:8px;font-size:12px;color:rgba(255,255,255,0.5)">${topItems.map(([n,q]) => `${n}: ${q}`).join(' • ')}</div>
+                        </div>`;
+                    }).join('');
+            } else {
+                const byMonth = {};
+                completedOrders.forEach(o => {
+                    const parts = o.time.split('/');
+                    let m = 'Unknown';
+                    if (parts.length >= 3) {
+                        m = parts[1].slice(-2) + '/' + parts[2].split(' ')[0].split(',')[0];
+                    } else if (parts.length === 2) {
+                        m = parts[1].split(' ')[0].split(',')[0].replace(/[^0-9]/g, '') + '/' + new Date().getFullYear();
+                    }
+                    if (!byMonth[m]) byMonth[m] = {count:0, total:0};
+                    byMonth[m].count++;
+                    byMonth[m].total += o.total;
+                });
+                
+                const sortedMonths = Object.keys(byMonth).sort((a,b) => {
+                    const [m1,y1] = a.split('/');
+                    const [m2,y2] = b.split('/');
+                    return new Date(y2,m2-1) - new Date(y1,m1-1);
+                });
+                
+                list.innerHTML = '<div style="font-weight:700;color:var(--gold);margin-bottom:12px;letter-spacing:1px">📆 Theo Tháng</div>' +
+                    sortedMonths.map(m => `<div style="background:linear-gradient(145deg,rgba(255,255,255,0.05) 0%,rgba(255,255,255,0.02) 100%);border-radius:14px;padding:16px;margin-bottom:10px;box-shadow:0 8px 25px rgba(0,0,0,0.2);border:1px solid rgba(255,255,255,0.08)">
+                        <div style="display:flex;justify-content:space-between;align-items:center">
+                            <span style="font-weight:700;color:#fff">${m}</span>
+                            <span style="color:var(--gold);font-weight:800">${fmt(byMonth[m].total)}</span>
+                        </div>
+                        <div style="font-size:12px;color:rgba(255,255,255,0.4);margin-top:6px">${byMonth[m].count} đơn</div>
+                    </div>`).join('');
+            }
+        }
+        
+        function openAddModal() {
+            editingId = null;
+            document.getElementById('modalTitle').textContent = '➕ Thêm Món Mới';
+            document.getElementById('itemEmoji').value = '☕';
+            document.getElementById('itemName').value = '';
+            document.getElementById('itemPrice').value = '';
+            document.getElementById('itemSizeS').value = 0;
+            document.getElementById('itemSizeM').value = 5000;
+            document.getElementById('itemSizeL').value = 10000;
+            document.getElementById('itemModal').classList.add('show');
+        }
+        
+        function openEditModal(id) {
+            const item = menu.find(m => m.id === id);
+            editingId = id;
+            document.getElementById('modalTitle').textContent = '✏️ Sửa Món';
+            document.getElementById('itemEmoji').value = item.emoji;
+            document.getElementById('itemName').value = item.name;
+            document.getElementById('itemPrice').value = item.price;
+            document.getElementById('itemSizeS').value = item.sizePrice?.S || 0;
+            document.getElementById('itemSizeM').value = item.sizePrice?.M || 5000;
+            document.getElementById('itemSizeL').value = item.sizePrice?.L || 10000;
+            document.getElementById('itemModal').classList.add('show');
+        }
+        
+        function closeModal() {
+            document.getElementById('itemModal').classList.remove('show');
+        }
+        
+        function saveItem() {
+            const emoji = document.getElementById('itemEmoji').value.trim() || '☕';
+            const name = document.getElementById('itemName').value.trim();
+            const price = parseInt(document.getElementById('itemPrice').value) || 0;
+            const sizeS = parseInt(document.getElementById('itemSizeS').value) || 0;
+            const sizeM = parseInt(document.getElementById('itemSizeM').value) || 0;
+            const sizeL = parseInt(document.getElementById('itemSizeL').value) || 0;
+            
+            if (!name) {showToast('Nhập tên món!', true);return;}
+            if (price <= 0) {showToast('Nhập giá hợp lệ!', true);return;}
+            
+            const item = {
+                id: editingId || Date.now(),
+                emoji,
+                name,
+                price,
+                sizePrice: { S: sizeS, M: sizeM, L: sizeL }
+            };
+            
+            if (editingId) {
+                const idx = menu.findIndex(m => m.id === editingId);
+                menu[idx] = item;
+            } else {
+                menu.push(item);
+            }
+            
+            localStorage.setItem('drinks_menu', JSON.stringify(menu));
+            syncMenuToCloud(item).catch(() => {});
+            closeModal();
+            renderMenu();
+            renderEditList();
+            showToast(editingId ? 'Đã cập nhật!' : 'Đã thêm món mới!');
+        }
+        
+        function deleteItem(id) {
+            if (!confirm('Xóa món này?')) return;
+            menu = menu.filter(m => m.id !== id);
+            localStorage.setItem('drinks_menu', JSON.stringify(menu));
+            if (useCloud) deleteMenuItem(id).catch(() => {});
+            renderMenu();
+            renderEditList();
+            showToast('Đã xóa món!');
+        }
+        
+        function initEmojiPicker() {
+            document.getElementById('emojiPicker').innerHTML = EMOJIS.map(e => 
+                `<button class="emoji-btn ${e==='☕'?'selected':''}" onclick="selectEmoji('${e}')">${e}</button>`
+            ).join('');
+            document.getElementById('itemEmoji').addEventListener('input', e => {
+                document.querySelectorAll('.emoji-btn').forEach(b => b.classList.remove('selected'));
+            });
+        }
+        
+        function selectEmoji(e) {
+            document.getElementById('itemEmoji').value = e;
+            document.querySelectorAll('.emoji-btn').forEach(b => b.classList.remove('selected'));
+            const btn = document.querySelector(`.emoji-btn[onclick="selectEmoji('${e}')"]`);
+            if (btn) btn.classList.add('selected');
+        }
+        
+        function initSettings() {
+            ['defaultSugar','defaultIce'].forEach(gid => {
+                document.getElementById(gid).querySelectorAll('.option-btn').forEach(btn => {
+                    btn.onclick = () => {
+                        document.getElementById(gid).querySelectorAll('.option-btn').forEach(b => b.classList.remove('selected'));
+                        btn.classList.add('selected');
+                        settings[gid === 'defaultSugar' ? 'sugar' : 'ice'] = btn.dataset.val;
+                        localStorage.setItem('drinks_settings', JSON.stringify(settings));
+                    };
+                });
+            });
+        }
+        
+        function showToast(msg, err) {
+            const t = document.getElementById('toast');
+            t.textContent = (err ? '⚠️ ' : '✅ ') + msg;
+            t.style.background = err ? 'var(--primary)' : 'rgba(0,0,0,0.9)';
+            t.classList.add('show');
+            setTimeout(() => t.classList.remove('show'), 2000);
+        }
+        
+        async function saveShopInfo() {
+            const info = {
+                name: document.getElementById('shopName').value,
+                info: document.getElementById('shopInfo').value
+            };
+            localStorage.setItem('drinks_shop_info', JSON.stringify(info));
+            if (useCloud) {
+                try {
+                    await updateShop({ name: info.name, address: info.info });
+                } catch(e) {}
+            }
+        }
+        
+        async function loadShopInfo() {
+            const info = JSON.parse(localStorage.getItem('drinks_shop_info')) || {name:'', info:''};
+            document.getElementById('shopName').value = info.name || 'Drinks Order';
+            document.getElementById('shopInfo').value = info.info || '';
+            if (useCloud) {
+                try {
+                    const shop = await fetchShop();
+                    document.getElementById('shopName').value = shop.name || 'Drinks Order';
+                    document.getElementById('shopInfo').value = shop.address || shop.phone || '';
+                    localStorage.setItem('drinks_shop_info', JSON.stringify({ name: shop.name || 'Drinks Order', info: shop.address || shop.phone || '' }));
+                } catch(e) {}
+            }
+        }
+        
+        async function getMappedOrders() {
+            const data = await fetchOrders();
+            return data.map(o => ({
+                id: o.id,
+                customer: o.table_number,
+                items: (o.order_items || []).map(i => {
+                    const sizeMatch = i.name.match(/\(([^)]+)\)$/);
+                    const noteParts = (i.note || '').split('•').map(p => p.trim());
+                    const sugar = noteParts[0]?.replace('Đường ','').replace('%','') || '70';
+                    const iceText = noteParts[1] || 'Bình thường';
+                    const iceMap = {'Nhiều đá':'full','Bình thường':'normal','Ít đá':'less','Không đá':'none'};
+                    return { n: i.name.replace(/\s*\([^)]+\)$/,''), q: i.qty, p: i.price, s: sugar, ice: iceMap[iceText] || 'normal', sz: sizeMatch ? sizeMatch[1] : 'S' };
+                }),
+                total: o.total,
+                status: o.status,
+                paid: o.paid,
+                time: new Date(o.created_at).toLocaleString('vi-VN',{year:'numeric',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}),
+                updatedAt: new Date(o.updated_at || o.created_at).getTime()
+            }));
+        }
+        
+        async function deleteOrderFnCloud(id) {
+            return deleteOrder(id);
+        }
+        
+        async function initCloud() {
+            try {
+                const session = await getSession();
+                if (!session) return;
+                await loadUserShop();
+                useCloud = true;
+                const cloudMenu = await fetchMenu();
+                const drinkMenu = (cloudMenu || []).filter(m => !m.category || m.category === 'drinks');
+                if (drinkMenu.length) {
+                    menu = drinkMenu.map((m, idx) => ({
+                        id: m.id,
+                        name: m.name,
+                        price: m.price,
+                        emoji: m.emoji || '☕',
+                        sizePrice: m.size_price || {S:0,M:5000,L:10000}
+                    }));
+                    localStorage.setItem('drinks_menu', JSON.stringify(menu));
+                }
+                orders = await getMappedOrders();
+                localStorage.setItem('drinks_orders', JSON.stringify(orders));
+                ordersChannel = subscribeOrders(async () => {
+                    orders = await getMappedOrders();
+                    localStorage.setItem('drinks_orders', JSON.stringify(orders));
+                    renderKitchen();
+                    renderStats();
+                });
+                orderItemsChannel = subscribeOrderItems(async () => {
+                    orders = await getMappedOrders();
+                    localStorage.setItem('drinks_orders', JSON.stringify(orders));
+                    renderKitchen();
+                    renderStats();
+                });
+            } catch(e) {
+                useCloud = false;
+            }
+        }
+        
+        async function syncMenuToCloud(item) {
+            if (!useCloud) return;
+            await upsertMenuItem({
+                id: item.id,
+                name: item.name,
+                price: item.price,
+                emoji: item.emoji,
+                size_price: item.sizePrice,
+                category: 'drinks'
+            });
+        }
+        
+        // Init
+        orders = JSON.parse(localStorage.getItem('drinks_orders')) || [];
+        document.querySelectorAll('.tab').forEach(t => t.onclick = () => switchTab(t.dataset.tab));
+        initEmojiPicker();
+        initSettings();
+        renderMenu();
+        updateBadge();
+        renderCart();
+        renderKitchen();
+        renderStats();
+        initCloud().then(() => {
+            renderMenu();
+            renderKitchen();
+            renderStats();
+            loadShopInfo();
+        });
+        loadShopInfo();
+        listenForOrders();
+    </script>
+</body>
+</html>

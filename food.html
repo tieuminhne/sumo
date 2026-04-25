@@ -166,7 +166,10 @@
 </head>
 <body>
     <header class="header">
-        <h1>🍜 SUMO QUÁN <span id="appStatus" style="font-size:10px;background:rgba(255,255,255,0.2);padding:2px 8px;border-radius:10px;margin-left:8px;vertical-align:middle">v3</span></h1>
+        <div style="display:flex;align-items:center;gap:10px">
+            <button id="homeBtn" onclick="window.location.href='owner.html'" style="display:none;background:rgba(255,255,255,0.2);border:none;color:#fff;padding:6px 12px;border-radius:12px;cursor:pointer;font-size:12px;font-weight:700">🏠 Dashboard</button>
+            <h1>🍜 SUMO QUÁN <span id="appStatus" style="font-size:10px;background:rgba(255,255,255,0.2);padding:2px 8px;border-radius:10px;margin-left:8px;vertical-align:middle">v3</span></h1>
+        </div>
         <div class="cart-badge" id="cartBadge">0</div>
     </header>
     
@@ -1331,6 +1334,7 @@
 
                     document.getElementById('logoutBtn').style.display = 'block';
                     document.getElementById('appStatus').innerText = isOwner() ? `v3 (Owner)` : `v3 (${currentStaffName})`;
+                    if (isOwner()) document.getElementById('homeBtn').style.display = 'block';
                 }
             } catch(e) {
                 alert('Không tải được dữ liệu quán: ' + e.message);

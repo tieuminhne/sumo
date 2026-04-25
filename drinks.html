@@ -148,7 +148,10 @@
 </head>
 <body>
     <header class="header">
-        <h1>☕ Drinks Order</h1>
+        <div style="display:flex;align-items:center;gap:10px">
+            <button id="homeBtn" onclick="window.location.href='owner.html'" style="display:none;background:rgba(255,255,255,0.2);border:none;color:#fff;padding:6px 12px;border-radius:12px;cursor:pointer;font-size:12px;font-weight:700">🏠 Dashboard</button>
+            <h1>☕ Drinks Order</h1>
+        </div>
         <div class="cart-badge" id="cartBadge">0</div>
     </header>
     
@@ -1141,6 +1144,9 @@
                 if (!session) return;
                 await loadUserShop();
                 useCloud = true;
+                if (_currentRole === 'owner') {
+                    document.getElementById('homeBtn').style.display = 'block';
+                }
                 const cloudMenu = await fetchMenu();
                 const drinkMenu = (cloudMenu || []).filter(m => !m.category || m.category === 'drinks');
                 if (drinkMenu.length) {

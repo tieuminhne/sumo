@@ -283,17 +283,32 @@ async function fetchStats() {
 
 async function addStaff(email, role) {
     const sb = getSupabase();
-    const { data: users } = await sb.from('auth.users').select('id').eq('email', email).single();
-    if (!users) throw new Error('User not found. They must sign up first.');
-    const { error } = await sb.from('shop_members').insert({ shop_id: _currentShopId, user_id: users.id, role });
-    if (error) throw error;
+    // Use RPC function instead of querying auth.users directly to bypass RLS
+    const { data: userId, error: rpcError } = await sb.rpc('get_user_id_by_email', { user_email: email });
+    if (rpcError) throw new Error('Không thể tìm tài khoản: ' + rpcError.message);
+    if (!userId) throw new Error('Không tìm thấy tài khoản. Nhân viên phải tự đăng ký bằng email này trước.');
+    
+    const { error } = await sb.from('shop_members').insert({ shop_id: _currentShopId, user_id: userId, role });
+    if (error) {
+        if (error.code === '23505') throw new Error('Nhân viên này đã được thêm vào quán rồi.');
+        throw error;
+    }
 }
 
 async function fetchMembers() {
     const sb = getSupabase();
-    const { data, error } = await sb.from('shop_members')
-        .select('id, role, user_id')
-        .eq('shop_id', _currentShopId);
+    // Try to use the RPC function first
+    const { data, error } = await sb.rpc('get_shop_members_with_email', { target_shop_id: _currentShopId });
+    
+    // Fallback to normal select if RPC doesn't exist
+    if (error && error.code === 'PGRST202') {
+        const { data: fallbackData, error: fallbackError } = await sb.from('shop_members')
+            .select('id, role, user_id')
+            .eq('shop_id', _currentShopId);
+        if (fallbackError) throw fallbackError;
+        return fallbackData;
+    }
+    
     if (error) throw error;
     return data;
 }

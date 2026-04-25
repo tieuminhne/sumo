@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+    <meta name="theme-color" content="#1a1a2e">
+    <title>Chủ Quán - SUMO QUÁN</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&display=swap');
+        *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+        :root{--primary:#c41e3a;--primary-dark:#a01830;--gold:#d4af37;--dark:#1a1a2e}
+        html,body{min-height:100vh;font-family:'Poppins',sans-serif;background:linear-gradient(135deg,#1a1a2e 0%,#16213e 50%,#1a1a2e 100%);color:#fff}
+        body{max-width:480px;margin:0 auto}
+        .header{position:sticky;top:0;z-index:100;background:rgba(26,26,46,0.95);backdrop-filter:blur(20px);padding:16px;border-bottom:1px solid rgba(255,255,255,0.08)}
+        .header-top{display:flex;justify-content:space-between;align-items:center;gap:12px}
+        .title{font-size:22px;font-weight:800}
+        .subtitle{font-size:12px;color:rgba(255,255,255,0.5);margin-top:4px}
+        .logout-btn{background:linear-gradient(135deg,#636e72 0%,#2d3436 100%);color:#fff;border:none;border-radius:12px;padding:10px 14px;font-weight:700;cursor:pointer}
+        .content{padding:16px 16px 32px}
+        .hero{background:linear-gradient(135deg,rgba(212,175,55,0.18) 0%,rgba(212,175,55,0.05) 100%);border:2px solid var(--gold);border-radius:24px;padding:24px;margin-bottom:16px;position:relative;overflow:hidden}
+        .hero h1{font-size:26px;font-weight:800;margin-bottom:6px}
+        .hero p{font-size:13px;color:rgba(255,255,255,0.65)}
+        .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:16px 0}
+        .card{background:linear-gradient(145deg,rgba(255,255,255,0.08) 0%,rgba(255,255,255,0.02) 100%);border:1px solid rgba(255,255,255,0.08);border-radius:20px;padding:18px;box-shadow:0 10px 30px rgba(0,0,0,0.22)}
+        .card-label{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:rgba(255,255,255,0.45);margin-bottom:8px}
+        .card-value{font-size:26px;font-weight:800;color:var(--gold)}
+        .section{background:linear-gradient(145deg,rgba(255,255,255,0.08) 0%,rgba(255,255,255,0.02) 100%);border:1px solid rgba(255,255,255,0.08);border-radius:22px;padding:18px;margin-bottom:16px}
+        .section-title{font-size:16px;font-weight:800;color:#fff;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+        .section-title::before{content:'';width:5px;height:20px;background:linear-gradient(180deg,var(--gold),var(--primary));border-radius:3px}
+        .action-list{display:grid;gap:10px}
+        .action-btn{width:100%;border:none;border-radius:16px;padding:18px;text-align:left;font-weight:700;cursor:pointer;color:#fff;background:linear-gradient(135deg,rgba(255,255,255,0.08) 0%,rgba(255,255,255,0.04) 100%);border:1px solid rgba(255,255,255,0.08)}
+        .action-btn strong{display:block;font-size:15px}
+        .action-btn span{display:block;font-size:12px;color:rgba(255,255,255,0.5);margin-top:4px;font-weight:600}
+        .action-btn.primary{background:linear-gradient(135deg,var(--primary) 0%,var(--primary-dark) 100%)}
+        .action-btn.gold{background:linear-gradient(135deg,var(--gold) 0%,#b8962e 100%);color:#1a1a2e}
+        .action-btn.gold span{color:rgba(26,26,46,0.7)}
+        .shop-info{display:grid;gap:12px}
+        .field label{display:block;font-size:11px;font-weight:700;color:var(--gold);margin-bottom:8px;text-transform:uppercase;letter-spacing:1px}
+        .field input{width:100%;padding:14px;border-radius:14px;border:2px solid rgba(255,255,255,0.12);background:rgba(255,255,255,0.05);color:#fff;outline:0}
+        .field input:focus{border-color:var(--gold);box-shadow:0 0 0 4px rgba(212,175,55,0.15)}
+        .save-btn{width:100%;padding:16px;border:none;border-radius:16px;background:linear-gradient(135deg,var(--gold) 0%,#b8962e 100%);color:#1a1a2e;font-size:15px;font-weight:800;cursor:pointer}
+        .small{font-size:12px;color:rgba(255,255,255,0.45)}
+        .toast{position:fixed;top:20px;left:50%;transform:translateX(-50%) translateY(-120px);background:rgba(0,0,0,0.9);color:#fff;padding:12px 20px;border-radius:12px;font-size:14px;font-weight:700;z-index:999;transition:transform .3s}
+        .toast.show{transform:translateX(-50%) translateY(0)}
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-top">
+            <div>
+                <div class="title">🏪 Chủ Quán</div>
+                <div class="subtitle" id="ownerSubtitle">Quản lý quán của bạn</div>
+            </div>
+            <button class="logout-btn" onclick="handleLogout()">Đăng xuất</button>
+        </div>
+    </header>
+
+    <main class="content">
+        <section class="hero">
+            <h1 id="shopHeroName">SUMO QUÁN</h1>
+            <p>Trung tâm điều hành dành cho chủ quán. Từ đây bạn có thể mở khu bán hàng, bếp, thống kê và quản lý thông tin quán.</p>
+        </section>
+
+        <section class="grid">
+            <div class="card">
+                <div class="card-label">Đơn hoàn thành</div>
+                <div class="card-value" id="completedOrders">0</div>
+            </div>
+            <div class="card">
+                <div class="card-label">Doanh thu</div>
+                <div class="card-value" id="totalRevenue">0đ</div>
+            </div>
+        </section>
+
+        <section class="section">
+            <div class="section-title">Điều hướng nhanh</div>
+            <div class="action-list">
+                <button class="action-btn primary" onclick="goTo('food.html')">
+                    <strong>🍜 Khu món ăn</strong>
+                    <span>Nhân viên/khách đặt món ăn, theo dõi bếp và thanh toán</span>
+                </button>
+                <button class="action-btn primary" onclick="goTo('drinks.html')">
+                    <strong>☕ Khu đồ uống</strong>
+                    <span>Nhận đơn nước với đường, đá, size và thống kê riêng</span>
+                </button>
+                <button class="action-btn gold" onclick="goTo('kds.html')">
+                    <strong>🍳 Màn hình bếp</strong>
+                    <span>Màn hình lớn cho khu bếp theo dõi đơn realtime</span>
+                </button>
+            </div>
+        </section>
+
+        <section class="section">
+            <div class="section-title">Thiết lập quán</div>
+            <div class="shop-info">
+                <div class="field">
+                    <label>Tên quán</label>
+                    <input id="shopName" type="text" placeholder="Tên quán">
+                </div>
+                <div class="field">
+                    <label>Địa chỉ / SĐT</label>
+                    <input id="shopInfo" type="text" placeholder="Địa chỉ hoặc số điện thoại">
+                </div>
+                <button class="save-btn" onclick="saveShopInfo()">Lưu thông tin quán</button>
+                <div class="small">Thông tin này sẽ đồng bộ cho các trang quản lý dùng chung dữ liệu quán.</div>
+            </div>
+        </section>
+
+        <section class="section" id="adminStaffSection" style="display:none;">
+            <div class="section-title">👥 Quản lý Nhân Viên</div>
+            <div style="font-size:12px; color:rgba(255,255,255,0.6); margin-bottom:12px;">Nhân viên cần tự đăng ký tài khoản trước. Sau đó bạn nhập email của họ vào đây để cấp quyền truy cập quán.</div>
+            <div class="shop-info">
+                <div class="field">
+                    <label>Email Nhân Viên</label>
+                    <input id="staffEmail" type="email" placeholder="email_nhan_vien@gmail.com">
+                </div>
+                <button class="save-btn" onclick="handleAddStaff()" style="background:linear-gradient(135deg,var(--primary) 0%,var(--primary-dark) 100%);color:#fff">Thêm Nhân Viên</button>
+            </div>
+            <div style="margin-top: 16px;">
+                <div style="font-size: 13px; font-weight: bold; margin-bottom: 8px; color: var(--gold);">DANH SÁCH NHÂN VIÊN</div>
+                <div id="staffList" style="display:flex; flex-direction:column; gap:8px;"></div>
+            </div>
+        </section>
+    </main>
+
+    <div class="toast" id="toast"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase.js"></script>
+    <script>
+        function fmt(n) { return Number(n || 0).toLocaleString('vi') + 'đ'; }
+
+        function showToast(msg, err) {
+            const t = document.getElementById('toast');
+            t.textContent = (err ? '⚠️ ' : '✅ ') + msg;
+            t.style.background = err ? 'rgba(196,30,58,0.95)' : 'rgba(0,0,0,0.9)';
+            t.classList.add('show');
+            setTimeout(() => t.classList.remove('show'), 2000);
+        }
+
+        function goTo(path) {
+            window.location.href = path;
+        }
+
+        async function loadDashboard() {
+            const session = await getSession();
+            if (!session) {
+                window.location.href = 'login.html';
+                return;
+            }
+
+            _currentUser = session.user;
+            try {
+                const member = await loadUserShop();
+                const shop = await fetchShop();
+                document.getElementById('shopHeroName').textContent = shop.name || 'SUMO QUÁN';
+                document.getElementById('ownerSubtitle').textContent = `Đăng nhập: ${session.user.email}`;
+                document.getElementById('shopName').value = shop.name || '';
+                document.getElementById('shopInfo').value = shop.address || shop.phone || '';
+
+                const stats = await fetchStats();
+                const totalRevenue = stats.reduce((sum, row) => sum + Number(row.total || 0), 0);
+                document.getElementById('completedOrders').textContent = stats.length;
+                document.getElementById('totalRevenue').textContent = fmt(totalRevenue);
+                
+                if (session.user.email === 'tieuminh.1102@gmail.com') {
+                    document.getElementById('adminStaffSection').style.display = 'block';
+                    loadStaffList();
+                }
+            } catch (err) {
+                showToast(err.message, true);
+                setTimeout(() => { window.location.href = 'login.html'; }, 1200);
+            }
+        }
+
+        async function saveShopInfo() {
+            try {
+                const name = document.getElementById('shopName').value.trim();
+                const info = document.getElementById('shopInfo').value.trim();
+                await updateShop({ name, address: info });
+                localStorage.setItem('shop_info', JSON.stringify({ name, info }));
+                localStorage.setItem('drinks_shop_info', JSON.stringify({ name, info }));
+                document.getElementById('shopHeroName').textContent = name || 'SUMO QUÁN';
+                showToast('Đã lưu thông tin quán');
+            } catch (err) {
+                showToast(err.message, true);
+            }
+        }
+
+        async function handleLogout() {
+            try {
+                await signOut();
+            } finally {
+                window.location.href = 'login.html';
+            }
+        }
+
+        async function loadStaffList() {
+            try {
+                const members = await fetchMembers();
+                const listEl = document.getElementById('staffList');
+                if (members && members.length > 0) {
+                    // Lọc những người không phải tieuminh.1102@gmail.com (hoặc hiển thị tất cả nếu có email). 
+                    // Hiện API fetchMembers chỉ trả về user_id và role.
+                    listEl.innerHTML = members.map(m => `
+                        <div style="background:rgba(255,255,255,0.05); padding:10px; border-radius:8px; display:flex; justify-content:space-between; align-items:center;">
+                            <div>
+                                <div style="font-size:13px; font-weight:bold;">${m.email || 'ID: ' + m.user_id.substring(0, 8) + '...'}</div>
+                                <div style="font-size:11px; color:rgba(255,255,255,0.5);">${m.role}</div>
+                            </div>
+                            ${m.role !== 'owner' ? `<button onclick="removeStaff('${m.id}')" style="background:rgba(196,30,58,0.2);color:#ff6b6b;border:none;padding:6px 10px;border-radius:6px;cursor:pointer;">Xóa</button>` : ''}
+                        </div>
+                    `).join('');
+                } else {
+                    listEl.innerHTML = '<div style="font-size:13px; color:rgba(255,255,255,0.5);">Chưa có nhân viên nào</div>';
+                }
+            } catch (err) {
+                console.error("Lỗi tải danh sách NV", err);
+            }
+        }
+
+        async function handleAddStaff() {
+            const email = document.getElementById('staffEmail').value.trim();
+            if (!email) return showToast('Vui lòng nhập email', true);
+            try {
+                await addStaff(email, 'staff');
+                document.getElementById('staffEmail').value = '';
+                showToast('Thêm nhân viên thành công');
+                loadStaffList();
+            } catch (err) {
+                showToast(err.message, true);
+            }
+        }
+
+        async function removeStaff(memberId) {
+            if (!confirm('Xóa quyền truy cập của nhân viên này?')) return;
+            try {
+                const sb = getSupabase();
+                const { error } = await sb.from('shop_members').delete().eq('id', memberId);
+                if (error) throw error;
+                showToast('Đã xóa nhân viên');
+                loadStaffList();
+            } catch (err) {
+                showToast(err.message, true);
+            }
+        }
+
+        loadDashboard();
+    </script>
+</body>
+</html>
